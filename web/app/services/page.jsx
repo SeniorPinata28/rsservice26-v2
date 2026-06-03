@@ -1,0 +1,2 @@
+import Header from '../../components/Header';import Footer from '../../components/Footer';import {services} from '../../data';
+export default function Page(){return <><Header/><main className="main"><h1>Услуги</h1><div className="grid">{services.map(s=><article className="card" key={s.name}><h2>{s.name}</h2><p className="muted">{s.description}</p><p className="price">{s.price}</p></article>)}</div></main><Footer/></>}
