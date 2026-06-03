@@ -1,0 +1,12 @@
+import 'dotenv/config';
+import {Telegraf,Markup} from 'telegraf';
+const bot=new Telegraf(process.env.BOT_TOKEN);
+const menu=()=>Markup.keyboard([['Записаться','Найти запчасть'],['FAQ','Связаться с менеджером']]).resize();
+bot.start(ctx=>ctx.reply('RSService26. Чем помочь?',menu()));
+bot.hears('Записаться',ctx=>ctx.reply('Напишите имя, телефон, автомобиль и желаемую дату записи.'));
+bot.hears('Найти запчасть',ctx=>ctx.reply('Напишите название или артикул запчасти.'));
+bot.hears('FAQ',ctx=>ctx.reply('Запись доступна через сайт и Telegram. Оплата не подключена.'));
+bot.hears('Связаться с менеджером',ctx=>ctx.reply('Менеджер свяжется с вами после получения контакта.'));
+bot.launch().then(()=>console.log('Bot started'));
+process.once('SIGINT',()=>bot.stop('SIGINT'));
+process.once('SIGTERM',()=>bot.stop('SIGTERM'));
