@@ -1,0 +1,1 @@
+{"name":"rsservice26-v2","private":true,"scripts":{"build":"npm --prefix web install && npm --prefix web run build","start":"npm --prefix web start"}}
