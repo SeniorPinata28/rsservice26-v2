@@ -1,2 +1,2 @@
-import Header from '../../components/Header';import Footer from '../../components/Footer';import {parts} from '../../data';
-export default function Page(){return <><Header/><main className="main"><h1>Запчасти</h1><div className="grid">{parts.map(p=><article className="card" key={p.sku}><h2>{p.name}</h2><p className="muted">Артикул: {p.sku}</p><p>{p.compatibility}</p><p>В наличии: {p.stock} шт.</p><p className="price">{p.price}</p><button className="btn primary">В корзину</button></article>)}</div></main><Footer/></>}
+import Header from '../../components/Header';import Footer from '../../components/Footer';import PartsClient from './PartsClient';
+export default function Page(){return <><Header/><main className="main"><PartsClient/></main><Footer/></>}
