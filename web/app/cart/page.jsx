@@ -1,2 +1,2 @@
-import Header from '../../components/Header';import Footer from '../../components/Footer';
-export default function Page(){return <><Header/><main className="main"><h1>Корзина</h1><section className="card"><p className="muted">Корзина в этой версии подготовлена как экран оформления заказа. Подключение реальной оплаты не выполнялось.</p><p><a className="btn primary" href="/contact">Оформить через менеджера</a></p></section></main><Footer/></>}
+import Header from '../../components/Header';import Footer from '../../components/Footer';import CartClient from './CartClient';
+export default function Page(){return <><Header/><main className="main"><CartClient/></main><Footer/></>}
