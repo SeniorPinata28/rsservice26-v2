@@ -37,7 +37,7 @@ async function soapRequest(url,method,inner){
   const body=soapEnvelope(method,inner);
   const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/xml; charset=utf-8','SOAPAction':method},body,cache:'no-store'});
   const xml=await response.text();
-  if(!response.ok){return {ok:false,error:'Rossko API HTTP error',status:response.status,raw:xml.slice(0,1200)}}
+  if(!response.ok){return {ok:false,error:'Rossko API HTTP error',status:response.status,raw:xml.slice(0,1800)}}
   return {ok:true,xml};
 }
 
@@ -56,6 +56,10 @@ function parseCheckoutDetails(xml){
   return {deliveries,payments,addresses};
 }
 
+function safeRaw(xml){
+  return String(xml||'').replace(/<KEY1>[\s\S]*?<\/KEY1>/g,'<KEY1>hidden</KEY1>').replace(/<KEY2>[\s\S]*?<\/KEY2>/g,'<KEY2>hidden</KEY2>').slice(0,1800);
+}
+
 export async function getRosskoCheckoutDetails(){
   const {KEY1,KEY2,ready}=authReady();
   if(!ready){return {ok:false,configured:false,error:'ROSSKO_KEY1 and ROSSKO_KEY2 are not configured'}}
@@ -64,7 +68,8 @@ export async function getRosskoCheckoutDetails(){
   if(!result.ok)return {...result,configured:true};
   const success=tag(result.xml,'success');
   const message=tag(result.xml,'message');
-  return {ok:success==='true'||success==='1'||!message,configured:true,success,message,...parseCheckoutDetails(result.xml)};
+  const parsed=parseCheckoutDetails(result.xml);
+  return {ok:success==='true'||success==='1'||parsed.deliveries.length>0||parsed.addresses.length>0,configured:true,success,message,...parsed,raw:safeRaw(result.xml)};
 }
 
 export async function searchRossko(query){
@@ -78,5 +83,5 @@ export async function searchRossko(query){
   const success=tag(result.xml,'success');
   const message=tag(result.xml,'message');
   const parts=parseParts(result.xml);
-  return {ok:success==='true'||parts.length>0,configured:true,success,message,parts,rawCount:parts.length};
+  return {ok:success==='true'||parts.length>0,configured:true,success,message,parts,rawCount:parts.length,raw:safeRaw(result.xml)};
 }
