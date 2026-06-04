@@ -10,6 +10,17 @@ function credentials(){
   return {KEY1, KEY2, ready: Boolean(KEY1 && KEY2)};
 }
 
+function markupRate(){
+  const raw = Number(String(process.env.RSSERVICE26_MARKUP || '1.25').replace(',', '.'));
+  return raw > 0 ? raw : 1.25;
+}
+
+function salePrice(value){
+  const n = Number(String(value || '').replace(',', '.'));
+  if (!n) return null;
+  return Math.ceil(n * markupRate());
+}
+
 function list(value){
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
@@ -95,19 +106,25 @@ function parseParts(data){
 
   return parts.map((part) => {
     const stockWrap = part.stocks || part.Stocks || {};
-    const stocks = list(stockWrap.stock || stockWrap.Stock || part.stock || part.Stock).map((stock) => ({
-      id: String(stock.id || ''),
-      price: String(stock.price || ''),
-      count: Number(stock.count || 0),
-      multiplicity: Number(stock.multiplicity || 1),
-      type: String(stock.type || ''),
-      delivery: String(stock.delivery || ''),
-      extra: String(stock.extra || ''),
-      description: fixText(stock.description),
-      deliveryStart: String(stock.deliveryStart || ''),
-      deliveryEnd: String(stock.deliveryEnd || '')
-    }));
-
+    const stocks = list(stockWrap.stock || stockWrap.Stock || part.stock || part.Stock).map((stock) => {
+      const purchasePrice = Number(String(stock.price || '').replace(',', '.')) || null;
+      return {
+        id: String(stock.id || ''),
+        price: String(stock.price || ''),
+        purchasePrice,
+        salePrice: salePrice(purchasePrice),
+        count: Number(stock.count || 0),
+        multiplicity: Number(stock.multiplicity || 1),
+        type: String(stock.type || ''),
+        delivery: String(stock.delivery || ''),
+        extra: String(stock.extra || ''),
+        description: fixText(stock.description),
+        deliveryStart: String(stock.deliveryStart || ''),
+        deliveryEnd: String(stock.deliveryEnd || '')
+      };
+    });
+    const prices = stocks.map((stock) => stock.purchasePrice).filter(Boolean).sort((a, b) => a - b);
+    const sales = stocks.map((stock) => stock.salePrice).filter(Boolean).sort((a, b) => a - b);
     return {
       guid: String(part.guid || ''),
       brand: fixText(part.brand),
@@ -115,7 +132,8 @@ function parseParts(data){
       name: fixText(part.name),
       stocks,
       totalCount: stocks.reduce((sum, stock) => sum + Number(stock.count || 0), 0),
-      minPrice: stocks.map((stock) => Number(String(stock.price).replace(',', '.'))).filter(Boolean).sort((a, b) => a - b)[0] || null
+      minPrice: prices[0] || null,
+      minSalePrice: sales[0] || null
     };
   }).filter((part) => part.partnumber || part.name || part.brand);
 }
@@ -139,7 +157,7 @@ export async function searchRossko(query){
   try {
     const {response, data} = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
     const parts = parseParts(data);
-    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), parts, rawCount: parts.length, raw: debugRaw(response)};
+    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), markup: markupRate(), parts, rawCount: parts.length, raw: debugRaw(response)};
   } catch (error) {
     return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }
