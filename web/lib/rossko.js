@@ -35,11 +35,13 @@ function methodBody(method,inner,variant){
   if(variant==='direct')return `<ns1:${method}>${inner}</ns1:${method}>`;
   if(variant==='request')return `<ns1:${method}><request>${inner}</request></ns1:${method}>`;
   if(variant==='parameters')return `<ns1:${method}><parameters>${inner}</parameters></ns1:${method}>`;
+  if(variant==='param0')return `<ns1:${method}><param0>${inner}</param0></ns1:${method}>`;
+  if(variant==='arg0')return `<ns1:${method}><arg0>${inner}</arg0></ns1:${method}>`;
   return `<ns1:${method}><param>${inner}</param></ns1:${method}>`;
 }
 
 async function soapRequest(url,method,inner){
-  const variants=['direct','request','param','parameters'];
+  const variants=['direct','request','param','param0','arg0','parameters'];
   const attempts=[];
   for(const variant of variants){
     const body=envelope(methodBody(method,inner,variant));
@@ -47,7 +49,6 @@ async function soapRequest(url,method,inner){
     const xml=await response.text();
     attempts.push({variant,status:response.status,xml});
     const message=tag(xml,'message');
-    const success=tag(xml,'success');
     if(response.ok && !/Некорректный вызов сервиса/i.test(message||''))return {ok:true,xml,variant};
   }
   const last=attempts[attempts.length-1];
