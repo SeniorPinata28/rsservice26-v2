@@ -1,4 +1,4 @@
-import {getRosskoCheckoutDetails} from '../../../../lib/rossko';
+import {getRosskoCheckoutDetails} from '../../../../lib/rossko-soap';
 
 export async function GET(){
   try{
