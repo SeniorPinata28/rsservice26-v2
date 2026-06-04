@@ -1,5 +1,5 @@
 'use client'
-import {useState} from 'react'
+import {useMemo,useState} from 'react'
 
 function cleanText(value, fallback=''){
  const text=String(value||'').trim();
@@ -15,6 +15,13 @@ function titleFor(part,query){
  const base=cleanText(query,'запчасть');
  return `${base}${brand?' · '+brand:''}${article?' · '+article:''}`;
 }
+function bestStock(part){return part?.stocks?.filter(s=>s.count>0).sort((a,b)=>(a.salePrice||999999)-(b.salePrice||999999))[0]||null}
+function formatDate(value){
+ if(!value)return '';
+ const date=new Date(value);
+ if(Number.isNaN(date.getTime()))return '';
+ return date.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
 
 export default function AvailabilityClient(){
  const [q,setQ]=useState('');
@@ -22,9 +29,11 @@ export default function AvailabilityClient(){
  const [loading,setLoading]=useState(false);
  const [result,setResult]=useState(null);
  const [showAll,setShowAll]=useState(false);
+ const [sort,setSort]=useState('price');
+ const [brand,setBrand]=useState('all');
  async function search(){
   if(!q.trim())return;
-  setLoading(true);setResult(null);setShowAll(false);
+  setLoading(true);setResult(null);setShowAll(false);setBrand('all');
   try{
    const r=await fetch('/api/rossko/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q})});
    const data=await r.json();
@@ -33,15 +42,23 @@ export default function AvailabilityClient(){
   setLoading(false);
  }
  function requestPart(p){
-  const best=p?.stocks?.find(s=>s.count>0)||null;
+  const best=bestStock(p);
   const name=p?titleFor(p,q):'Запчасть';
-  const brand=cleanText(p?.brand,'');
+  const brandName=cleanText(p?.brand,'');
   const clientPrice=best?.salePrice||p?.minSalePrice;
-  const text=p?`Запрос запчасти Rossko:\n${name}\nБренд: ${brand||'уточнить'}\nАртикул: ${p.partnumber||''}\nЦена клиенту: ${clientPrice?clientPrice+' ₽':'уточнить'}\nОстаток: ${p.totalCount||0}\nСклад: ${cleanText(best?.description,'уточнить')}\nVIN: ${vin||'не указан'}`:`Проверить запчасть:\nЗапрос: ${q}\nVIN: ${vin||'не указан'}`;
+  const text=p?`Запрос запчасти Rossko:\n${name}\nБренд: ${brandName||'уточнить'}\nАртикул: ${p.partnumber||''}\nЦена клиенту: ${clientPrice?clientPrice+' ₽':'уточнить'}\nОстаток: ${p.totalCount||0}\nСклад: ${cleanText(best?.description,'уточнить')}\nДоставка: ${formatDate(best?.deliveryStart)||'уточнить'}\nVIN: ${vin||'не указан'}`:`Проверить запчасть:\nЗапрос: ${q}\nVIN: ${vin||'не указан'}`;
   sessionStorage.setItem('orderDraft',text);location.href='/contact';
  }
  const allParts=result?.parts||[];
- const sorted=[...allParts].sort((a,b)=>(b.totalCount>0)-(a.totalCount>0)||(a.minSalePrice||999999)-(b.minSalePrice||999999));
- const available=sorted.filter(p=>p.totalCount>0);
- const parts=showAll?sorted:available;
- return <><section className="hero"><span className="badge">Rossko API</span><h1>Проверить наличие запчасти</h1><p>Введите артикул, название или VIN. Сайт проверит цену и наличие через Rossko.</p></section><section className="section card"><div className="form"><input className="input" value={q} onChange={e=>setQ(e.target.value)} placeholder="Артикул, название детали или VIN"/><input className="input" value={vin} onChange={e=>setVin(e.target.value)} placeholder="VIN для заявки менеджеру (по желанию)"/><button className="btn primary" onClick={search} disabled={loading}>{loading?'Проверяем...':'Проверить через Rossko'}</button></div></section>{result&&<section className="section"><div className="sectionHead"><div><h2>В наличии</h2>{result.message&&<p className="muted">{cleanText(result.message,'')}</p>}</div><span className="badge">есть {available.length} из {sorted.length}</span></div>{result.error&&<div className="notice">{result.error}</div>}{!result.configured&&<div className="card"><h2>Rossko API ещё не настроен</h2><p className="muted">Нужно добавить ROSSKO_KEY1, ROSSKO_KEY2, ROSSKO_DELIVERY_ID и ROSSKO_ADDRESS_ID в Vercel.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить менеджеру</button></div>}{result.configured&&sorted.length===0&&<div className="card"><h2>Ничего не найдено</h2><p className="muted">Запрос можно отправить менеджеру для ручной проверки.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить запрос</button></div>}{sorted.length>0&&available.length===0&&<div className="card"><h2>Есть совпадения, но нет остатков</h2><p className="muted">Можно отправить запрос менеджеру для ручной проверки.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить запрос</button></div>}{available.length>0&&<div className="toolbar"><button className="btn" onClick={()=>setShowAll(!showAll)}>{showAll?'Показать только в наличии':`Показать все ${sorted.length} позиций`}</button></div>}{parts.length>0&&<div className="grid">{parts.map((p,i)=>{const best=p.stocks?.find(s=>s.count>0);const name=titleFor(p,q);const brand=cleanText(p.brand,'Бренд не указан');const clientPrice=best?.salePrice||p.minSalePrice;return <article className="card" key={(p.guid||p.partnumber||'p')+i}><span className={p.totalCount>0?'badge':'muted'}>{p.totalCount>0?'В наличии':'Нет остатка'}</span><h3>{name}</h3><p className="muted">{brand} · {p.partnumber}</p><p className="price">{clientPrice?`${clientPrice} ₽`:'цену уточнить'}</p><p className="muted">Цена RSService26</p><p>{p.totalCount>0?<span className="stock">Остаток: {p.totalCount} шт.</span>:<span className="muted">Остатка нет</span>}</p>{best?.description&&<p className="muted">{cleanText(best.description,'')}</p>}<button className="btn primary" onClick={()=>requestPart(p)}>Уточнить / заказать</button></article>})}</div>}</section>}</>}
+ const available=allParts.filter(p=>p.totalCount>0);
+ const brands=useMemo(()=>['all',...Array.from(new Set(available.map(p=>cleanText(p.brand,'')).filter(Boolean))).sort()],[result]);
+ const visibleBase=showAll?allParts:available;
+ const filtered=visibleBase.filter(p=>brand==='all'||cleanText(p.brand,'')===brand);
+ const parts=[...filtered].sort((a,b)=>{
+  if(sort==='stock')return (b.totalCount||0)-(a.totalCount||0);
+  if(sort==='brand')return cleanText(a.brand,'').localeCompare(cleanText(b.brand,''),'ru');
+  const ap=bestStock(a)?.salePrice||a.minSalePrice||999999;
+  const bp=bestStock(b)?.salePrice||b.minSalePrice||999999;
+  return ap-bp;
+ });
+ return <><section className="hero"><span className="badge">Rossko API</span><h1>Проверить наличие запчасти</h1><p>Введите артикул, название или VIN. Сайт проверит цену и наличие через Rossko.</p></section><section className="section card searchPanel"><div className="form"><input className="input" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')search()}} placeholder="Артикул, название детали или VIN"/><input className="input" value={vin} onChange={e=>setVin(e.target.value)} placeholder="VIN для заявки менеджеру (по желанию)"/><button className="btn primary" onClick={search} disabled={loading}>{loading?'Проверяем...':'Проверить через Rossko'}</button></div></section>{result&&<section className="section"><div className="sectionHead"><div><h2>В наличии</h2>{result.message&&<p className="muted">{cleanText(result.message,'')}</p>}</div><span className="badge">есть {available.length} из {allParts.length}</span></div>{result.error&&<div className="notice">{result.error}</div>}{!result.configured&&<div className="card"><h2>Rossko API ещё не настроен</h2><p className="muted">Нужно добавить ROSSKO_KEY1, ROSSKO_KEY2, ROSSKO_DELIVERY_ID и ROSSKO_ADDRESS_ID в Vercel.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить менеджеру</button></div>}{result.configured&&allParts.length===0&&<div className="card"><h2>Ничего не найдено</h2><p className="muted">Запрос можно отправить менеджеру для ручной проверки.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить запрос</button></div>}{allParts.length>0&&available.length===0&&<div className="card"><h2>Есть совпадения, но нет остатков</h2><p className="muted">Можно отправить запрос менеджеру для ручной проверки.</p><button className="btn primary" onClick={()=>requestPart(null)}>Отправить запрос</button></div>}{available.length>0&&<div className="filters"><button className="btn" onClick={()=>setShowAll(!showAll)}>{showAll?'Только в наличии':`Все ${allParts.length} позиций`}</button><select value={sort} onChange={e=>setSort(e.target.value)}><option value="price">Сначала дешевле</option><option value="stock">Больше остаток</option><option value="brand">По бренду</option></select><select value={brand} onChange={e=>setBrand(e.target.value)}><option value="all">Все бренды</option>{brands.filter(b=>b!=='all').map(b=><option key={b} value={b}>{b}</option>)}</select></div>}{parts.length>0&&<div className="productGrid">{parts.map((p,i)=>{const best=bestStock(p);const name=titleFor(p,q);const brandName=cleanText(p.brand,'Бренд не указан');const clientPrice=best?.salePrice||p.minSalePrice;return <article className="productCard" key={(p.guid||p.partnumber||'p')+i}><div className="productTop"><span className={p.totalCount>0?'badge':'muted'}>{p.totalCount>0?'В наличии':'Нет остатка'}</span>{best?.deliveryStart&&<span className="deliveryPill">{formatDate(best.deliveryStart)}</span>}</div><h3>{name}</h3><p className="muted productMeta">{brandName} · {p.partnumber}</p><p className="price">{clientPrice?`${clientPrice} ₽`:'цену уточнить'}</p><p>{p.totalCount>0?<span className="stock">Остаток: {p.totalCount} шт.</span>:<span className="muted">Остатка нет</span>}</p>{best?.description&&<p className="muted">{cleanText(best.description,'')}</p>}<button className="btn primary" onClick={()=>requestPart(p)}>Уточнить / заказать</button></article>})}</div>}</section>}</>}
