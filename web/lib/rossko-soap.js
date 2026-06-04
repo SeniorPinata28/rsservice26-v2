@@ -20,12 +20,32 @@ function unwrap(response){
   return resultKey ? response[resultKey] : response;
 }
 
+function debugRaw(value){
+  try {
+    return JSON.stringify(value, null, 2).replace(String(process.env.ROSSKO_KEY1 || '__key1__'), 'hidden_key1').replace(String(process.env.ROSSKO_KEY2 || '__key2__'), 'hidden_key2').slice(0, 3000);
+  } catch {
+    return 'raw unavailable';
+  }
+}
+
+function deepFindArray(obj, names){
+  if (!obj || typeof obj !== 'object') return [];
+  for (const name of names){
+    if (obj[name]) return list(obj[name]);
+  }
+  for (const value of Object.values(obj)){
+    const found = deepFindArray(value, names);
+    if (found.length) return found;
+  }
+  return [];
+}
+
 async function call(wsdl, method, payload){
   const client = await soap.createClientAsync(wsdl, {disableCache: true});
   const fn = client[`${method}Async`];
   if (!fn) throw new Error(`SOAP method not found: ${method}`);
   const [response] = await fn(payload);
-  return unwrap(response);
+  return {response, data: unwrap(response)};
 }
 
 function parseCheckout(data){
@@ -59,7 +79,8 @@ function parseCheckout(data){
 function parseParts(data){
   const root = unwrap(data) || {};
   const partsList = root.PartsList || root.partsList || root.PartList || root.parts || {};
-  const parts = list(partsList.Part || partsList.part || root.Part || root.part);
+  let parts = list(partsList.Part || partsList.part || root.Part || root.part);
+  if (!parts.length) parts = deepFindArray(root, ['Part', 'part']);
 
   return parts.map((part) => {
     const stockWrap = part.stocks || part.Stocks || {};
@@ -92,10 +113,10 @@ export async function getRosskoCheckoutDetails(){
   const {KEY1, KEY2, ready} = credentials();
   if (!ready) return {ok: false, configured: false, error: 'Rossko keys are not configured'};
   try {
-    const data = await call(DETAILS_WSDL, 'GetCheckoutDetails', {KEY1, KEY2});
-    return {ok: true, configured: true, success: data?.success, message: data?.message || '', ...parseCheckout(data)};
+    const {response, data} = await call(DETAILS_WSDL, 'GetCheckoutDetails', {KEY1, KEY2});
+    return {ok: true, configured: true, success: data?.success, message: data?.message || '', ...parseCheckout(data), raw: debugRaw(response)};
   } catch (error) {
-    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error'};
+    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }
 }
 
@@ -105,10 +126,10 @@ export async function searchRossko(query){
   const addressId = process.env.ROSSKO_ADDRESS_ID;
   if (!ready || !deliveryId || !addressId) return {ok: false, configured: false, error: 'Rossko search variables are not configured'};
   try {
-    const data = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
+    const {response, data} = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
     const parts = parseParts(data);
-    return {ok: true, configured: true, success: data?.success, message: data?.message || '', parts, rawCount: parts.length};
+    return {ok: true, configured: true, success: data?.success, message: data?.message || '', parts, rawCount: parts.length, raw: debugRaw(response)};
   } catch (error) {
-    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error'};
+    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }
 }
