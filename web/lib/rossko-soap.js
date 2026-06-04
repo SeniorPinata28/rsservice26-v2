@@ -1,4 +1,5 @@
 import soap from 'soap';
+import iconv from 'iconv-lite';
 
 const SEARCH_WSDL = 'https://api.rossko.ru/service/v2.1/GetSearch?wsdl';
 const DETAILS_WSDL = 'https://api.rossko.ru/service/v2.1/GetCheckoutDetails?wsdl';
@@ -18,6 +19,16 @@ function unwrap(response){
   if (!response || typeof response !== 'object') return response;
   const resultKey = Object.keys(response).find((key) => key.toLowerCase().endsWith('result'));
   return resultKey ? response[resultKey] : response;
+}
+
+function fixText(value){
+  const text = String(value || '');
+  if (!/[РС][А-Яа-яA-Za-z0-9]/.test(text)) return text;
+  try {
+    return iconv.decode(iconv.encode(text, 'win1251'), 'utf8');
+  } catch {
+    return text;
+  }
 }
 
 function debugRaw(value){
@@ -55,21 +66,21 @@ function parseCheckout(data){
   const deliveryAddress = root.DeliveryAddress || root.deliveryAddress || {};
 
   const deliveries = list(deliveryType.delivery || deliveryType.Delivery || root.delivery || root.Delivery)
-    .map((item) => ({id: String(item.id || ''), name: String(item.name || '')}))
+    .map((item) => ({id: String(item.id || ''), name: fixText(item.name)}))
     .filter((item) => item.id || item.name);
 
   const payments = list(paymentType.payment || paymentType.Payment || root.payment || root.Payment)
-    .map((item) => ({id: String(item.id || ''), name: String(item.name || '')}))
+    .map((item) => ({id: String(item.id || ''), name: fixText(item.name)}))
     .filter((item) => item.id || item.name);
 
   const addresses = list(deliveryAddress.address || deliveryAddress.Address || root.address || root.Address)
     .map((item) => ({
       id: String(item.id || ''),
-      city: String(item.city || ''),
-      street: String(item.street || ''),
-      house: String(item.house || ''),
-      office: String(item.office || ''),
-      raw: [item.city, item.street, item.house, item.office].filter(Boolean).join(', ')
+      city: fixText(item.city),
+      street: fixText(item.street),
+      house: fixText(item.house),
+      office: fixText(item.office),
+      raw: [fixText(item.city), fixText(item.street), fixText(item.house), fixText(item.office)].filter(Boolean).join(', ')
     }))
     .filter((item) => item.id || item.raw);
 
@@ -92,16 +103,16 @@ function parseParts(data){
       type: String(stock.type || ''),
       delivery: String(stock.delivery || ''),
       extra: String(stock.extra || ''),
-      description: String(stock.description || ''),
+      description: fixText(stock.description),
       deliveryStart: String(stock.deliveryStart || ''),
       deliveryEnd: String(stock.deliveryEnd || '')
     }));
 
     return {
       guid: String(part.guid || ''),
-      brand: String(part.brand || ''),
+      brand: fixText(part.brand),
       partnumber: String(part.partnumber || ''),
-      name: String(part.name || ''),
+      name: fixText(part.name),
       stocks,
       totalCount: stocks.reduce((sum, stock) => sum + Number(stock.count || 0), 0),
       minPrice: stocks.map((stock) => Number(String(stock.price).replace(',', '.'))).filter(Boolean).sort((a, b) => a - b)[0] || null
@@ -114,7 +125,7 @@ export async function getRosskoCheckoutDetails(){
   if (!ready) return {ok: false, configured: false, error: 'Rossko keys are not configured'};
   try {
     const {response, data} = await call(DETAILS_WSDL, 'GetCheckoutDetails', {KEY1, KEY2});
-    return {ok: true, configured: true, success: data?.success, message: data?.message || '', ...parseCheckout(data), raw: debugRaw(response)};
+    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), ...parseCheckout(data), raw: debugRaw(response)};
   } catch (error) {
     return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }
@@ -128,7 +139,7 @@ export async function searchRossko(query){
   try {
     const {response, data} = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
     const parts = parseParts(data);
-    return {ok: true, configured: true, success: data?.success, message: data?.message || '', parts, rawCount: parts.length, raw: debugRaw(response)};
+    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), parts, rawCount: parts.length, raw: debugRaw(response)};
   } catch (error) {
     return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }
