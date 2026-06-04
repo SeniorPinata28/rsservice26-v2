@@ -24,21 +24,34 @@ function authReady(){
   return {KEY1,KEY2,ready:Boolean(KEY1&&KEY2)};
 }
 
-function soapEnvelope(method,inner){
+function envelope(inner){
   return `<?xml version="1.0" encoding="UTF-8"?>
-  <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://api.rossko.ru/">
-    <soapenv:Body>
-      <ns1:${method}>${inner}</ns1:${method}>
-    </soapenv:Body>
-  </soapenv:Envelope>`;
+  <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://api.rossko.ru/">
+    <SOAP-ENV:Body>${inner}</SOAP-ENV:Body>
+  </SOAP-ENV:Envelope>`;
+}
+
+function methodBody(method,inner,variant){
+  if(variant==='direct')return `<ns1:${method}>${inner}</ns1:${method}>`;
+  if(variant==='request')return `<ns1:${method}><request>${inner}</request></ns1:${method}>`;
+  if(variant==='parameters')return `<ns1:${method}><parameters>${inner}</parameters></ns1:${method}>`;
+  return `<ns1:${method}><param>${inner}</param></ns1:${method}>`;
 }
 
 async function soapRequest(url,method,inner){
-  const body=soapEnvelope(method,inner);
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/xml; charset=utf-8','SOAPAction':method},body,cache:'no-store'});
-  const xml=await response.text();
-  if(!response.ok){return {ok:false,error:'Rossko API HTTP error',status:response.status,raw:xml.slice(0,1800)}}
-  return {ok:true,xml};
+  const variants=['direct','request','param','parameters'];
+  const attempts=[];
+  for(const variant of variants){
+    const body=envelope(methodBody(method,inner,variant));
+    const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/xml; charset=utf-8','SOAPAction':`http://api.rossko.ru/${method}`},body,cache:'no-store'});
+    const xml=await response.text();
+    attempts.push({variant,status:response.status,xml});
+    const message=tag(xml,'message');
+    const success=tag(xml,'success');
+    if(response.ok && !/Некорректный вызов сервиса/i.test(message||''))return {ok:true,xml,variant};
+  }
+  const last=attempts[attempts.length-1];
+  return {ok:false,error:'Rossko API call failed',status:last?.status,raw:safeRaw(attempts.map(a=>`VARIANT: ${a.variant}\nSTATUS: ${a.status}\n${a.xml}`).join('\n\n---\n\n'))};
 }
 
 function parseParts(xml){
@@ -57,7 +70,7 @@ function parseCheckoutDetails(xml){
 }
 
 function safeRaw(xml){
-  return String(xml||'').replace(/<KEY1>[\s\S]*?<\/KEY1>/g,'<KEY1>hidden</KEY1>').replace(/<KEY2>[\s\S]*?<\/KEY2>/g,'<KEY2>hidden</KEY2>').slice(0,1800);
+  return String(xml||'').replace(/<KEY1>[\s\S]*?<\/KEY1>/g,'<KEY1>hidden</KEY1>').replace(/<KEY2>[\s\S]*?<\/KEY2>/g,'<KEY2>hidden</KEY2>').slice(0,2600);
 }
 
 export async function getRosskoCheckoutDetails(){
@@ -69,7 +82,7 @@ export async function getRosskoCheckoutDetails(){
   const success=tag(result.xml,'success');
   const message=tag(result.xml,'message');
   const parsed=parseCheckoutDetails(result.xml);
-  return {ok:success==='true'||success==='1'||parsed.deliveries.length>0||parsed.addresses.length>0,configured:true,success,message,...parsed,raw:safeRaw(result.xml)};
+  return {ok:success==='true'||success==='1'||parsed.deliveries.length>0||parsed.addresses.length>0,configured:true,success,message,variant:result.variant,...parsed,raw:safeRaw(result.xml)};
 }
 
 export async function searchRossko(query){
@@ -83,5 +96,5 @@ export async function searchRossko(query){
   const success=tag(result.xml,'success');
   const message=tag(result.xml,'message');
   const parts=parseParts(result.xml);
-  return {ok:success==='true'||parts.length>0,configured:true,success,message,parts,rawCount:parts.length,raw:safeRaw(result.xml)};
+  return {ok:success==='true'||parts.length>0,configured:true,success,message,variant:result.variant,parts,rawCount:parts.length,raw:safeRaw(result.xml)};
 }
