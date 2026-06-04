@@ -1,4 +1,4 @@
-import {searchRossko} from '../../../../lib/rossko';
+import {searchRossko} from '../../../../lib/rossko-soap';
 
 export async function GET(request){
   const {searchParams}=new URL(request.url);
