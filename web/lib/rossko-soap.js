@@ -1,0 +1,114 @@
+import soap from 'soap';
+
+const SEARCH_WSDL = 'https://api.rossko.ru/service/v2.1/GetSearch?wsdl';
+const DETAILS_WSDL = 'https://api.rossko.ru/service/v2.1/GetCheckoutDetails?wsdl';
+
+function credentials(){
+  const KEY1 = process.env.ROSSKO_KEY1;
+  const KEY2 = process.env.ROSSKO_KEY2;
+  return {KEY1, KEY2, ready: Boolean(KEY1 && KEY2)};
+}
+
+function list(value){
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function unwrap(response){
+  if (!response || typeof response !== 'object') return response;
+  const resultKey = Object.keys(response).find((key) => key.toLowerCase().endsWith('result'));
+  return resultKey ? response[resultKey] : response;
+}
+
+async function call(wsdl, method, payload){
+  const client = await soap.createClientAsync(wsdl, {disableCache: true});
+  const fn = client[`${method}Async`];
+  if (!fn) throw new Error(`SOAP method not found: ${method}`);
+  const [response] = await fn(payload);
+  return unwrap(response);
+}
+
+function parseCheckout(data){
+  const root = unwrap(data) || {};
+  const deliveryType = root.DeliveryType || root.deliveryType || {};
+  const paymentType = root.PaymentType || root.paymentType || {};
+  const deliveryAddress = root.DeliveryAddress || root.deliveryAddress || {};
+
+  const deliveries = list(deliveryType.delivery || deliveryType.Delivery || root.delivery || root.Delivery)
+    .map((item) => ({id: String(item.id || ''), name: String(item.name || '')}))
+    .filter((item) => item.id || item.name);
+
+  const payments = list(paymentType.payment || paymentType.Payment || root.payment || root.Payment)
+    .map((item) => ({id: String(item.id || ''), name: String(item.name || '')}))
+    .filter((item) => item.id || item.name);
+
+  const addresses = list(deliveryAddress.address || deliveryAddress.Address || root.address || root.Address)
+    .map((item) => ({
+      id: String(item.id || ''),
+      city: String(item.city || ''),
+      street: String(item.street || ''),
+      house: String(item.house || ''),
+      office: String(item.office || ''),
+      raw: [item.city, item.street, item.house, item.office].filter(Boolean).join(', ')
+    }))
+    .filter((item) => item.id || item.raw);
+
+  return {deliveries, payments, addresses};
+}
+
+function parseParts(data){
+  const root = unwrap(data) || {};
+  const partsList = root.PartsList || root.partsList || root.PartList || root.parts || {};
+  const parts = list(partsList.Part || partsList.part || root.Part || root.part);
+
+  return parts.map((part) => {
+    const stockWrap = part.stocks || part.Stocks || {};
+    const stocks = list(stockWrap.stock || stockWrap.Stock || part.stock || part.Stock).map((stock) => ({
+      id: String(stock.id || ''),
+      price: String(stock.price || ''),
+      count: Number(stock.count || 0),
+      multiplicity: Number(stock.multiplicity || 1),
+      type: String(stock.type || ''),
+      delivery: String(stock.delivery || ''),
+      extra: String(stock.extra || ''),
+      description: String(stock.description || ''),
+      deliveryStart: String(stock.deliveryStart || ''),
+      deliveryEnd: String(stock.deliveryEnd || '')
+    }));
+
+    return {
+      guid: String(part.guid || ''),
+      brand: String(part.brand || ''),
+      partnumber: String(part.partnumber || ''),
+      name: String(part.name || ''),
+      stocks,
+      totalCount: stocks.reduce((sum, stock) => sum + Number(stock.count || 0), 0),
+      minPrice: stocks.map((stock) => Number(String(stock.price).replace(',', '.'))).filter(Boolean).sort((a, b) => a - b)[0] || null
+    };
+  }).filter((part) => part.partnumber || part.name || part.brand);
+}
+
+export async function getRosskoCheckoutDetails(){
+  const {KEY1, KEY2, ready} = credentials();
+  if (!ready) return {ok: false, configured: false, error: 'Rossko keys are not configured'};
+  try {
+    const data = await call(DETAILS_WSDL, 'GetCheckoutDetails', {KEY1, KEY2});
+    return {ok: true, configured: true, success: data?.success, message: data?.message || '', ...parseCheckout(data)};
+  } catch (error) {
+    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error'};
+  }
+}
+
+export async function searchRossko(query){
+  const {KEY1, KEY2, ready} = credentials();
+  const deliveryId = process.env.ROSSKO_DELIVERY_ID;
+  const addressId = process.env.ROSSKO_ADDRESS_ID;
+  if (!ready || !deliveryId || !addressId) return {ok: false, configured: false, error: 'Rossko search variables are not configured'};
+  try {
+    const data = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
+    const parts = parseParts(data);
+    return {ok: true, configured: true, success: data?.success, message: data?.message || '', parts, rawCount: parts.length};
+  } catch (error) {
+    return {ok: false, configured: true, error: error.message || 'Rossko SOAP error'};
+  }
+}
