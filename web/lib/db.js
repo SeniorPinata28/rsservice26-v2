@@ -3,7 +3,7 @@ const DB_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export function dbReady(){return Boolean(DB_URL&&DB_KEY)}
 
-async function db(path,opts={}){
+export async function db(path,opts={}){
   if(!dbReady())return {ok:false,configured:false,data:null};
   const headers={apikey:DB_KEY,Authorization:'Bearer '+DB_KEY,'Content-Type':'application/json',...(opts.headers||{})};
   const res=await fetch(DB_URL.replace(/\/$/,'')+'/rest/v1/'+path,{method:opts.method||'GET',headers,body:opts.body?JSON.stringify(opts.body):undefined,cache:'no-store'});
@@ -31,4 +31,22 @@ export async function createLead({type,name,phone,car,text,vin,mileage,customerI
   const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{public_id:publicId,type:type||'question',status:'new',source:'site',customer_id:customerId||null,vehicle_id:vehicleId||null,name:name||null,phone:phone||null,car_text:car||null,vin:vin||null,mileage:mileage||null,request_text:text||null,raw_payload:raw||null}]});
   if(!created.ok)return null;
   return Array.isArray(created.data)?created.data[0]:created.data;
+}
+
+export async function listLeads(){
+  const r=await db('leads?select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
+
+export async function getLead(id){
+  const r=await db('leads?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');
+  if(!r.ok||!Array.isArray(r.data))return null;
+  return r.data[0]||null;
+}
+
+export async function updateLeadStatus(id,status){
+  const r=await db('leads?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{status,updated_at:new Date().toISOString()}});
+  if(!r.ok)return null;
+  return Array.isArray(r.data)?r.data[0]:r.data;
 }
