@@ -1,4 +1,6 @@
-export async function GET(){return Response.json({ok:true,message:'Leads API is running',storage:'telegram-notification + browser admin demo'})}
+import {createLead,getOrCreateCustomer,dbReady} from '../../../lib/db.js';
+
+export async function GET(){return Response.json({ok:true,message:'Leads API is running',storage:dbReady()?'supabase + telegram':'telegram fallback'})}
 
 export async function POST(request){
   try{
@@ -7,17 +9,31 @@ export async function POST(request){
     const phone=String(data.phone||'').trim();
     const car=String(data.car||'').trim();
     const text=String(data.text||'').trim();
+    const type=String(data.type||'question').trim();
+    const vin=String(data.vin||'').trim();
+    const mileage=data.mileage?Number(data.mileage):null;
     if(!name||!phone||!text){return Response.json({ok:false,error:'Заполните имя, телефон и текст заявки'},{status:400})}
-    const lead={id:Date.now(),date:new Date().toISOString(),name,phone,car,text,status:'new',source:'site'};
+
+    let customer=null;
+    let savedLead=null;
+    if(dbReady()){
+      try{
+        customer=await getOrCreateCustomer({name,phone});
+        savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:customer?.id,raw:data});
+      }catch(e){}
+    }
+
+    const lead=savedLead||{id:Date.now(),public_id:null,date:new Date().toISOString(),type,name,phone,car,text,status:'new',source:'site'};
     const token=process.env.TELEGRAM_BOT_TOKEN||process.env.BOT_TOKEN;
     const chat=process.env.TELEGRAM_CHAT_ID||process.env.MANAGER_CHAT_ID;
     let telegram=false;
     if(token&&chat){
-      const message=`Новая заявка RSService26\n\nИмя: ${name}\nТелефон: ${phone}\nАвто: ${car||'не указано'}\n\n${text}`;
+      const number=lead.public_id?` #${lead.public_id}`:'';
+      const message=`Новая заявка RSService26${number}\n\nТип: ${type}\nИмя: ${name}\nТелефон: ${phone}\nАвто: ${car||'не указано'}${vin?'\nVIN: '+vin:''}\n\n${text}`;
       const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message})});
       telegram=tg.ok;
     }
-    return Response.json({ok:true,telegram,lead});
+    return Response.json({ok:true,telegram,saved:Boolean(savedLead),customerId:customer?.id||null,lead});
   }catch(e){
     return Response.json({ok:false,error:'Ошибка обработки заявки'},{status:500});
   }
