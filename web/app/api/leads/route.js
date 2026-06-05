@@ -8,7 +8,7 @@ export async function POST(request){
     const name=String(data.name||'').trim();
     const phone=String(data.phone||'').trim();
     const car=String(data.car||'').trim();
-    const text=String(data.text||'').trim();
+    const text=String(data.text||data.message||data.comment||data.request||'').trim();
     const type=String(data.type||'question').trim();
     const vin=String(data.vin||'').trim();
     const mileage=data.mileage?Number(data.mileage):null;
@@ -16,11 +16,12 @@ export async function POST(request){
 
     let customer=null;
     let savedLead=null;
+    let dbError=null;
     if(dbReady()){
       try{
         customer=await getOrCreateCustomer({name,phone});
         savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:customer?.id,raw:data});
-      }catch(e){}
+      }catch(e){dbError=String(e?.message||e)}
     }
 
     const lead=savedLead||{id:Date.now(),public_id:null,date:new Date().toISOString(),type,name,phone,car,text,status:'new',source:'site'};
@@ -33,8 +34,8 @@ export async function POST(request){
       const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message})});
       telegram=tg.ok;
     }
-    return Response.json({ok:true,telegram,saved:Boolean(savedLead),customerId:customer?.id||null,lead});
+    return Response.json({ok:true,telegram,saved:Boolean(savedLead),dbReady:dbReady(),dbError,customerId:customer?.id||null,lead});
   }catch(e){
-    return Response.json({ok:false,error:'Ошибка обработки заявки'},{status:500});
+    return Response.json({ok:false,error:'Ошибка обработки заявки',details:String(e?.message||e)},{status:500});
   }
 }
