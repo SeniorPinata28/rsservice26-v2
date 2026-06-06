@@ -1,6 +1,9 @@
 const DB_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const DB_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+export const LEAD_STATUSES=['new_contact','in_progress','waiting_client','completed','declined'];
+export const CONTACT_STATUSES=['unverified','verified','confirmed_client','duplicate','spam'];
+
 export function dbReady(){return Boolean(DB_URL&&DB_KEY)}
 
 export async function db(path,opts={}){
@@ -13,18 +16,19 @@ export async function db(path,opts={}){
   return {ok:res.ok,status:res.status,data};
 }
 
-export function normalizePhone(phone){
-  return String(phone||'').trim();
-}
+export function normalizePhone(phone){return String(phone||'').replace(/[^0-9+]/g,'').trim()}
+export function normalizeLeadStatus(status){return LEAD_STATUSES.includes(status)?status:'new_contact'}
+export function normalizeContactStatus(status){return CONTACT_STATUSES.includes(status)?status:'unverified'}
+export function getContactStatus(lead){return normalizeContactStatus(lead?.raw_payload?.contact_status)}
 
-export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,raw}){
+export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,source,raw}){
   const publicId='RS-'+Date.now().toString().slice(-8);
-  const payload={...(raw||{}),contact_status:(raw&&raw.contact_status)||'unverified'};
+  const rawPayload={...(raw||{}),contact_status:normalizeContactStatus(raw?.contact_status),lead_status:'new_contact'};
   const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{
     public_id:publicId,
     type:type||'question',
     status:'new_contact',
-    source:'site',
+    source:source||raw?.source||'site',
     customer_id:customerId||null,
     vehicle_id:vehicleId||null,
     name:name||null,
@@ -33,14 +37,14 @@ export async function createLead({type,name,phone,car,text,vin,mileage,customerI
     vin:vin||null,
     mileage:mileage||null,
     request_text:text||null,
-    raw_payload:payload
+    raw_payload:rawPayload
   }]});
   if(!created.ok)return null;
   return Array.isArray(created.data)?created.data[0]:created.data;
 }
 
 export async function listLeads(){
-  const r=await db('leads?select=*&order=created_at.desc&limit=100');
+  const r=await db('leads?select=*&order=created_at.desc&limit=200');
   if(!r.ok)return [];
   return Array.isArray(r.data)?r.data:[];
 }
@@ -51,16 +55,62 @@ export async function getLead(id){
   return r.data[0]||null;
 }
 
-export async function updateLeadStatus(id,status){
-  const r=await db('leads?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{status,updated_at:new Date().toISOString()}});
+export async function updateLead(id,patch){
+  const r=await db('leads?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{...patch,updated_at:new Date().toISOString()}});
   if(!r.ok)return null;
   return Array.isArray(r.data)?r.data[0]:r.data;
+}
+
+export async function updateLeadStatus(id,status){return updateLead(id,{status:normalizeLeadStatus(status)})}
+
+export async function updateLeadContactStatus(id,contactStatus){
+  const lead=await getLead(id);
+  if(!lead)return null;
+  const raw={...(lead.raw_payload||{}),contact_status:normalizeContactStatus(contactStatus)};
+  return updateLead(id,{raw_payload:raw});
+}
+
+export async function addManagerComment(id,comment){
+  const text=String(comment||'').trim();
+  if(!text)return await getLead(id);
+  const lead=await getLead(id);
+  if(!lead)return null;
+  const item={text,created_at:new Date().toISOString()};
+  const raw=lead.raw_payload||{};
+  const comments=Array.isArray(raw.manager_comments)?raw.manager_comments:[];
+  const updated=await updateLead(id,{raw_payload:{...raw,manager_comments:[item,...comments].slice(0,20),manager_comment_last:text}});
+  await db('manager_comments',{method:'POST',body:[{lead_id:id,comment_text:text}]}).catch(()=>null);
+  return updated;
 }
 
 export async function listCustomers(){
   const r=await db('customers?select=*&status=eq.confirmed&order=created_at.desc&limit=100');
   if(!r.ok)return [];
   return Array.isArray(r.data)?r.data:[];
+}
+
+export async function findConfirmedCustomerByPhone(phone){
+  const normalized=normalizePhone(phone);
+  if(!normalized)return null;
+  const r=await db('customers?phone=eq.'+encodeURIComponent(normalized)+'&status=eq.confirmed&select=*&limit=1');
+  if(!r.ok||!Array.isArray(r.data))return null;
+  return r.data[0]||null;
+}
+
+export async function confirmLeadAsCustomer(id){
+  const lead=await getLead(id);
+  if(!lead)return null;
+  const phone=normalizePhone(lead.phone);
+  if(!phone)throw new Error('У заявки нет телефона для подтверждения клиента');
+  let customer=await findConfirmedCustomerByPhone(phone);
+  if(!customer){
+    const created=await db('customers',{method:'POST',headers:{Prefer:'return=representation'},body:[{full_name:lead.name||null,phone,status:'confirmed'}]});
+    if(!created.ok)throw new Error('Не удалось создать клиента');
+    customer=Array.isArray(created.data)?created.data[0]:created.data;
+  }
+  const raw={...(lead.raw_payload||{}),contact_status:'confirmed_client'};
+  const updated=await updateLead(id,{customer_id:customer.id,raw_payload:raw});
+  return {lead:updated,customer};
 }
 
 export async function getCustomer(id){
