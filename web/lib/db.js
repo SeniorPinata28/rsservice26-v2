@@ -50,3 +50,27 @@ export async function updateLeadStatus(id,status){
   if(!r.ok)return null;
   return Array.isArray(r.data)?r.data[0]:r.data;
 }
+
+export async function listCustomers(){
+  const r=await db('customers?select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
+
+export async function getCustomer(id){
+  const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');
+  if(!r.ok||!Array.isArray(r.data))return null;
+  return r.data[0]||null;
+}
+
+export async function getCustomerLeads(customerId){
+  const r=await db('leads?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
+
+export async function getCustomerVehicles(customerId){
+  const r=await db('vehicles?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
