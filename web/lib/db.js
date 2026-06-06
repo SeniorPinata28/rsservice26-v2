@@ -103,6 +103,12 @@ export async function findConfirmedCustomerByPhone(phone){
   return customer;
 }
 
+async function createCustomerVariant(body){
+  const created=await db('customers',{method:'POST',headers:{Prefer:'return=representation'},body:[body]});
+  if(!created.ok)return {ok:false,error:created.error||created.data||created.status};
+  return {ok:true,customer:Array.isArray(created.data)?created.data[0]:created.data};
+}
+
 export async function confirmLeadAsCustomer(id){
   const lead=await getLead(id);
   if(!lead)return null;
@@ -110,9 +116,20 @@ export async function confirmLeadAsCustomer(id){
   if(!phone)throw new Error('У заявки нет телефона для подтверждения клиента');
   let customer=await findConfirmedCustomerByPhone(phone);
   if(!customer){
-    const created=await db('customers',{method:'POST',headers:{Prefer:'return=representation'},body:[{full_name:lead.name||null,phone,status:'confirmed'}]});
-    if(!created.ok)throw new Error('Не удалось создать клиента: '+JSON.stringify(created.error||created.data||created.status));
-    customer=Array.isArray(created.data)?created.data[0]:created.data;
+    const variants=[
+      {full_name:lead.name||null,phone,status:'confirmed'},
+      {name:lead.name||null,phone,status:'confirmed'},
+      {full_name:lead.name||null,phone},
+      {name:lead.name||null,phone},
+      {phone}
+    ];
+    let lastError=null;
+    for(const body of variants){
+      const attempt=await createCustomerVariant(body);
+      if(attempt.ok){customer=attempt.customer;break}
+      lastError=attempt.error;
+    }
+    if(!customer)throw new Error('Не удалось создать клиента: '+JSON.stringify(lastError));
   }
   const raw={...(lead.raw_payload||{}),contact_status:'confirmed_client'};
   const updated=await updateLead(id,{customer_id:customer.id,raw_payload:raw});
