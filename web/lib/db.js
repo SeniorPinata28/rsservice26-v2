@@ -74,3 +74,27 @@ export async function getCustomerVehicles(customerId){
   if(!r.ok)return [];
   return Array.isArray(r.data)?r.data:[];
 }
+
+export async function listVehicles(){
+  const r=await db('vehicles?select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
+
+export async function getVehicle(id){
+  const r=await db('vehicles?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');
+  if(!r.ok||!Array.isArray(r.data))return null;
+  return r.data[0]||null;
+}
+
+export async function getVehicleLeads(vehicleId){
+  const r=await db('leads?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=created_at.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
+
+export async function getVehicleServiceHistory(vehicleId){
+  const r=await db('service_history?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=service_date.desc&limit=100');
+  if(!r.ok)return [];
+  return Array.isArray(r.data)?r.data:[];
+}
