@@ -84,7 +84,7 @@ export default function AvailabilityClient({initialQuery=''}){
     const comment=String(leadForm.comment||'').trim();
     const requestText=`${pendingRequest.text}\nVIN: ${formVin||'не указан'}${comment?`\nКомментарий клиента: ${comment}`:''}`;
     const payload={
-      type:pendingRequest.mode==='install'?'installation':'part',
+      type:pendingRequest.mode==='install'?'installation_booking':'parts_order',
       source:'availability',
       name:leadForm.name,
       phone:leadForm.phone,
