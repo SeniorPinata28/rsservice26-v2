@@ -4,23 +4,26 @@ import {useMemo,useState} from 'react'
 
 const leadStatuses={new_contact:'Новый контакт',in_progress:'В работе',waiting_client:'Ждём клиента',completed:'Выполнена',declined:'Отказ'};
 const contactStatuses={unverified:'Новый контакт',verified:'Проверен',confirmed_client:'Подтверждённый клиент',duplicate:'Дубль',spam:'Спам'};
-const typeLabels={part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос',selection:'Подбор'};
+const typeLabels={part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос',selection:'Подбор',parts_search:'Проверка наличия',parts_order:'Заказ запчасти',installation_booking:'Запись на установку',service_booking:'Запись на сервис',general_callback:'Вопрос / обратный звонок',phone_callback:'Телефонная заявка',parts_selection_request:'Подбор деталей'};
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
-function contactStatus(lead){return lead?.raw_payload?.contact_status||'unverified'}
+function contactStatus(lead){return lead?.contact_status||lead?.raw_payload?.contact_status||'unverified'}
+function normalizedPhone(value){return String(value||'').replace(/[^0-9+]/g,'').toLowerCase()}
 
 export default function AdminFilters({leads}){
  const [status,setStatus]=useState('all');
+ const [contact,setContact]=useState('all');
  const [type,setType]=useState('all');
  const [phone,setPhone]=useState('');
  const [number,setNumber]=useState('');
  const clean=Array.isArray(leads)?leads.filter(l=>l.type!=='debug'):[];
  const filtered=useMemo(()=>clean.filter(lead=>{
   if(status!=='all'&&lead.status!==status)return false;
+  if(contact!=='all'&&contactStatus(lead)!==contact)return false;
   if(type!=='all'&&lead.type!==type)return false;
-  if(phone&&!(lead.phone||'').toLowerCase().includes(phone.toLowerCase()))return false;
+  if(phone&&!normalizedPhone(lead.phone).includes(normalizedPhone(phone)))return false;
   if(number&&!(lead.public_id||'').toLowerCase().includes(number.toLowerCase()))return false;
   return true;
- }),[clean,status,type,phone,number]);
+ }),[clean,status,contact,type,phone,number]);
  const potential=clean.filter(l=>!l.customer_id&&contactStatus(l)!=='spam'&&contactStatus(l)!=='duplicate');
  const confirmed=clean.filter(l=>l.customer_id||contactStatus(l)==='confirmed_client');
  return <>
@@ -28,6 +31,7 @@ export default function AdminFilters({leads}){
    <div className="adminListHead"><b>Заявки</b><span>{filtered.length} из {clean.length}</span></div>
    <div className="filters">
     <select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">Все статусы заявки</option>{Object.entries(leadStatuses).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
+    <select value={contact} onChange={e=>setContact(e.target.value)}><option value="all">Все статусы контакта</option>{Object.entries(contactStatuses).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
     <select value={type} onChange={e=>setType(e.target.value)}><option value="all">Все типы заявки</option>{Object.entries(typeLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
     <input className="input" style={{maxWidth:220}} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Поиск по телефону"/>
     <input className="input" style={{maxWidth:220}} value={number} onChange={e=>setNumber(e.target.value)} placeholder="Поиск по номеру"/>
