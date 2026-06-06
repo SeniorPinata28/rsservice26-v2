@@ -1,34 +1,55 @@
-import {createLead,dbReady} from '../../../lib/db.js';
+import {createLead,dbReady,normalizePhone} from '../../../lib/db.js';
 
 export async function GET(){return Response.json({ok:true,message:'Leads API is running',storage:dbReady()?'supabase + telegram':'telegram fallback'})}
+
+function value(data,...keys){for(const key of keys){const v=data?.[key];if(v!==undefined&&v!==null&&String(v).trim()!=='')return String(v).trim()}return ''}
+function money(v){return v!==undefined&&v!==null&&String(v).trim()?String(v).trim():''}
 
 export async function POST(request){
   try{
     const data=await request.json();
-    const name=String(data.name||'').trim();
-    const phone=String(data.phone||'').trim();
-    const car=String(data.car||'').trim();
-    const text=String(data.text||data.message||data.comment||data.request||'').trim();
-    const type=String(data.type||'question').trim();
-    const vin=String(data.vin||'').trim();
-    const mileage=data.mileage?Number(data.mileage):null;
+    const name=value(data,'name','client_name');
+    const phone=normalizePhone(value(data,'phone','client_phone'));
+    const car=value(data,'car_text','car','vehicle');
+    const vin=value(data,'vin');
+    const mileage=value(data,'mileage')?Number(value(data,'mileage')):null;
+    const type=value(data,'type')||'question';
+    const source=value(data,'source')||'site';
+    const text=value(data,'request_text','text','message','comment','request')||'Заявка без текста';
     if(!name||!phone||!text){return Response.json({ok:false,error:'Заполните имя, телефон и текст заявки'},{status:400})}
 
+    const raw={...data,source,contact_status:'unverified',lead_status:'new_contact'};
     let savedLead=null;
     let dbError=null;
     if(dbReady()){
-      try{
-        savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:null,raw:{...data,contact_status:'unverified'}});
-      }catch(e){dbError=String(e?.message||e)}
+      try{savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:null,vehicleId:null,source,raw})}
+      catch(e){dbError=String(e?.message||e)}
     }
 
-    const lead=savedLead||{id:Date.now(),public_id:null,date:new Date().toISOString(),type,name,phone,car,text,status:'new',source:'site'};
+    const lead=savedLead||{id:Date.now(),public_id:null,created_at:new Date().toISOString(),type,status:'new_contact',source,name,phone,car_text:car,vin,mileage,request_text:text,raw_payload:raw,customer_id:null,vehicle_id:null};
     const token=process.env.TELEGRAM_BOT_TOKEN||process.env.BOT_TOKEN;
     const chat=process.env.TELEGRAM_CHAT_ID||process.env.MANAGER_CHAT_ID;
     let telegram=false;
     if(token&&chat){
       const number=lead.public_id?` #${lead.public_id}`:'';
-      const message=`Новая заявка RSService26${number}\n\nСтатус контакта: новый контакт\nТип: ${type}\nИмя: ${name}\nТелефон: ${phone}\nАвто: ${car||'не указано'}${vin?'\nVIN: '+vin:''}\n\n${text}`;
+      const clientPrice=money(data.client_price||data.salePrice||data.price_client||data.price);
+      const stock=money(data.stock||data.totalCount||data.count);
+      const delivery=money(data.delivery||data.deliveryStart||data.delivery_time);
+      const message=[
+        `Новая заявка RSService26${number}`,
+        '',
+        'Статус контакта: новый контакт',
+        `Тип: ${type}`,
+        `Имя: ${name}`,
+        `Телефон: ${phone}`,
+        `Авто: ${car||'не указано'}`,
+        vin?`VIN: ${vin}`:null,
+        '',
+        text,
+        clientPrice?`Цена клиенту: ${clientPrice}`:null,
+        stock?`Остаток: ${stock}`:null,
+        delivery?`Срок доставки: ${delivery}`:null
+      ].filter(Boolean).join('\n');
       const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message})});
       telegram=tg.ok;
     }
