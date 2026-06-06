@@ -19,17 +19,20 @@ export async function db(path,opts={}){
 export function normalizePhone(phone){return String(phone||'').replace(/[^0-9+]/g,'').trim()}
 export function normalizeLeadStatus(status){return LEAD_STATUSES.includes(status)?status:'new_contact'}
 export function normalizeContactStatus(status){return CONTACT_STATUSES.includes(status)?status:'unverified'}
-export function getContactStatus(lead){return normalizeContactStatus(lead?.raw_payload?.contact_status)}
+export function normalizeLeadType(type){const map={part:'parts_order',installation:'installation_booking',service:'service_booking',question:'general_callback',selection:'parts_selection_request',contact:'general_callback'};return map[type]||type||'general_callback'}
+export function getContactStatus(lead){return normalizeContactStatus(lead?.contact_status||lead?.raw_payload?.contact_status)}
 
 export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,source,raw}){
   const now=new Date().toISOString();
   const publicId='RS-'+Date.now().toString().slice(-8);
-  const rawPayload={...(raw||{}),contact_status:normalizeContactStatus(raw?.contact_status),lead_status:'new_contact'};
-  const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{
+  const contactStatus=normalizeContactStatus(raw?.contact_status);
+  const rawPayload={...(raw||{}),contact_status:contactStatus,lead_status:'new_contact'};
+  const base={
     public_id:publicId,
     created_at:now,
-    type:type||'question',
+    type:normalizeLeadType(type),
     status:'new_contact',
+    contact_status:contactStatus,
     source:source||raw?.source||'site',
     customer_id:customerId||null,
     vehicle_id:vehicleId||null,
@@ -40,7 +43,13 @@ export async function createLead({type,name,phone,car,text,vin,mileage,customerI
     mileage:mileage||null,
     request_text:text||null,
     raw_payload:rawPayload
-  }]});
+  };
+  let created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[base]});
+  if(!created.ok){
+    const fallback={...base};
+    delete fallback.contact_status;
+    created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[fallback]});
+  }
   if(!created.ok)throw new Error('Supabase leads insert failed: '+JSON.stringify(created.error||created.data||created.status));
   return Array.isArray(created.data)?created.data[0]:created.data;
 }
@@ -68,8 +77,10 @@ export async function updateLeadStatus(id,status){return updateLead(id,{status:n
 export async function updateLeadContactStatus(id,contactStatus){
   const lead=await getLead(id);
   if(!lead)return null;
-  const raw={...(lead.raw_payload||{}),contact_status:normalizeContactStatus(contactStatus)};
-  return updateLead(id,{raw_payload:raw});
+  const next=normalizeContactStatus(contactStatus);
+  const raw={...(lead.raw_payload||{}),contact_status:next};
+  try{return await updateLead(id,{contact_status:next,raw_payload:raw})}
+  catch(e){return updateLead(id,{raw_payload:raw})}
 }
 
 export async function addManagerComment(id,comment){
@@ -116,24 +127,14 @@ export async function confirmLeadAsCustomer(id){
   if(!phone)throw new Error('У заявки нет телефона для подтверждения клиента');
   let customer=await findConfirmedCustomerByPhone(phone);
   if(!customer){
-    const variants=[
-      {full_name:lead.name||null,phone,status:'confirmed'},
-      {name:lead.name||null,phone,status:'confirmed'},
-      {full_name:lead.name||null,phone},
-      {name:lead.name||null,phone},
-      {phone}
-    ];
+    const variants=[{full_name:lead.name||null,phone,status:'confirmed'},{name:lead.name||null,phone,status:'confirmed'},{full_name:lead.name||null,phone},{name:lead.name||null,phone},{phone}];
     let lastError=null;
-    for(const body of variants){
-      const attempt=await createCustomerVariant(body);
-      if(attempt.ok){customer=attempt.customer;break}
-      lastError=attempt.error;
-    }
+    for(const body of variants){const attempt=await createCustomerVariant(body);if(attempt.ok){customer=attempt.customer;break}lastError=attempt.error}
     if(!customer)throw new Error('Не удалось создать клиента: '+JSON.stringify(lastError));
   }
   const raw={...(lead.raw_payload||{}),contact_status:'confirmed_client'};
-  const updated=await updateLead(id,{customer_id:customer.id,raw_payload:raw});
-  return {lead:updated,customer};
+  try{return {lead:await updateLead(id,{customer_id:customer.id,contact_status:'confirmed_client',raw_payload:raw}),customer}}
+  catch(e){return {lead:await updateLead(id,{customer_id:customer.id,raw_payload:raw}),customer}}
 }
 
 export async function getCustomer(id){
