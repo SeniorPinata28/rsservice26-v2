@@ -1,4 +1,4 @@
-import {createLead,getOrCreateCustomer,dbReady} from '../../../lib/db.js';
+import {createLead,dbReady} from '../../../lib/db.js';
 
 export async function GET(){return Response.json({ok:true,message:'Leads API is running',storage:dbReady()?'supabase + telegram':'telegram fallback'})}
 
@@ -14,13 +14,11 @@ export async function POST(request){
     const mileage=data.mileage?Number(data.mileage):null;
     if(!name||!phone||!text){return Response.json({ok:false,error:'Заполните имя, телефон и текст заявки'},{status:400})}
 
-    let customer=null;
     let savedLead=null;
     let dbError=null;
     if(dbReady()){
       try{
-        customer=await getOrCreateCustomer({name,phone});
-        savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:customer?.id,raw:data});
+        savedLead=await createLead({type,name,phone,car,text,vin,mileage,customerId:null,raw:{...data,contact_status:'unverified'}});
       }catch(e){dbError=String(e?.message||e)}
     }
 
@@ -30,11 +28,11 @@ export async function POST(request){
     let telegram=false;
     if(token&&chat){
       const number=lead.public_id?` #${lead.public_id}`:'';
-      const message=`Новая заявка RSService26${number}\n\nТип: ${type}\nИмя: ${name}\nТелефон: ${phone}\nАвто: ${car||'не указано'}${vin?'\nVIN: '+vin:''}\n\n${text}`;
+      const message=`Новая заявка RSService26${number}\n\nСтатус контакта: новый контакт\nТип: ${type}\nИмя: ${name}\nТелефон: ${phone}\nАвто: ${car||'не указано'}${vin?'\nVIN: '+vin:''}\n\n${text}`;
       const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message})});
       telegram=tg.ok;
     }
-    return Response.json({ok:true,telegram,saved:Boolean(savedLead),dbReady:dbReady(),dbError,customerId:customer?.id||null,lead});
+    return Response.json({ok:true,telegram,saved:Boolean(savedLead),dbReady:dbReady(),dbError,customerId:null,contactStatus:'unverified',lead});
   }catch(e){
     return Response.json({ok:false,error:'Ошибка обработки заявки',details:String(e?.message||e)},{status:500});
   }
