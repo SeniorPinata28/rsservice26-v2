@@ -1,6 +1,5 @@
 'use client'
 import {useEffect,useMemo,useState} from 'react'
-import {useSearchParams} from 'next/navigation'
 
 const quickQueries=['фильтр масляный','фильтр воздушный','колодки передние','свечи зажигания','насос масляный','помпа','ремень приводной','стойка стабилизатора'];
 const generalHints={насос:['насос масляный','насос топливный','насос ГУР','насос омывателя','помпа'],фильтр:['фильтр масляный','фильтр воздушный','фильтр салонный','фильтр топливный'],колодки:['колодки передние','колодки задние','колодки Hyundai','колодки Kia']};
@@ -24,9 +23,8 @@ function bestStock(part){return part?.stocks?.filter(s=>s.count>0).sort((a,b)=>(
 function formatDate(value){if(!value)return '';const date=new Date(value);if(Number.isNaN(date.getTime()))return '';return date.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function hintsFor(query){const q=String(query||'').trim().toLowerCase();return generalHints[q]||[]}
 
-export default function AvailabilityClient(){
-  const params=useSearchParams();
-  const [q,setQ]=useState(params.get('q')||'');
+export default function AvailabilityClient({initialQuery=''}){
+  const [q,setQ]=useState(initialQuery||'');
   const [vin,setVin]=useState('');
   const [loading,setLoading]=useState(false);
   const [result,setResult]=useState(null);
@@ -50,7 +48,7 @@ export default function AvailabilityClient(){
     setLoading(false);
   }
 
-  useEffect(()=>{const initial=params.get('q');if(initial)search(initial)},[]);
+  useEffect(()=>{if(initialQuery)search(initialQuery)},[initialQuery]);
 
   function buildRequest(part,mode='part'){
     const best=bestStock(part);
