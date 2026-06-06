@@ -58,8 +58,8 @@ export async function getLead(id){
 }
 
 export async function updateLead(id,patch){
-  const r=await db('leads?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{...patch,updated_at:new Date().toISOString()}});
-  if(!r.ok)return null;
+  const r=await db('leads?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:patch});
+  if(!r.ok)throw new Error('Supabase leads update failed: '+JSON.stringify(r.error||r.data||r.status));
   return Array.isArray(r.data)?r.data[0]:r.data;
 }
 
@@ -86,17 +86,21 @@ export async function addManagerComment(id,comment){
 }
 
 export async function listCustomers(){
-  const r=await db('customers?select=*&status=eq.confirmed&order=created_at.desc&limit=100');
+  const r=await db('customers?select=*&order=created_at.desc&limit=100');
   if(!r.ok)return [];
-  return Array.isArray(r.data)?r.data:[];
+  const rows=Array.isArray(r.data)?r.data:[];
+  return rows.filter(c=>!c.status||c.status==='confirmed'||c.status==='confirmed_client');
 }
 
 export async function findConfirmedCustomerByPhone(phone){
   const normalized=normalizePhone(phone);
   if(!normalized)return null;
-  const r=await db('customers?phone=eq.'+encodeURIComponent(normalized)+'&status=eq.confirmed&select=*&limit=1');
+  const r=await db('customers?phone=eq.'+encodeURIComponent(normalized)+'&select=*&limit=1');
   if(!r.ok||!Array.isArray(r.data))return null;
-  return r.data[0]||null;
+  const customer=r.data[0]||null;
+  if(!customer)return null;
+  if(customer.status&&customer.status!=='confirmed'&&customer.status!=='confirmed_client')return null;
+  return customer;
 }
 
 export async function confirmLeadAsCustomer(id){
@@ -116,7 +120,7 @@ export async function confirmLeadAsCustomer(id){
 }
 
 export async function getCustomer(id){
-  const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&status=eq.confirmed&select=*&limit=1');
+  const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');
   if(!r.ok||!Array.isArray(r.data))return null;
   return r.data[0]||null;
 }
