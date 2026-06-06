@@ -58,15 +58,18 @@ export default function AvailabilityClient(){
   const name=p?titleFor(p,q):'Запчасть';
   const brandName=cleanText(p?.brand,'');
   const clientPrice=best?.salePrice||p?.minSalePrice;
+  const deliveryText=formatDate(best?.deliveryStart)||'уточнить';
+  const stockCount=p?.totalCount||best?.count||0;
   const action=mode==='install'?'Записать на установку':'Заказать запчасть';
-  const text=p?`${action}:\n${name}\nБренд: ${brandName||'уточнить'}\nАртикул: ${p.partnumber||''}\nЦена клиенту: ${clientPrice?clientPrice+' ₽':'уточнить'}\nОстаток: ${p.totalCount||0}\nСклад: ${cleanText(best?.description,'уточнить')}\nДоставка: ${formatDate(best?.deliveryStart)||'уточнить'}\nVIN: ${vin||'не указан'}`:`Проверить запчасть:\nЗапрос: ${q}\nVIN: ${vin||'не указан'}`;
+  const text=p?`${action}:\n${name}\nБренд: ${brandName||'уточнить'}\nАртикул: ${p.partnumber||''}\nЦена клиенту: ${clientPrice?clientPrice+' ₽':'уточнить'}\nОстаток: ${stockCount}\nСклад: ${cleanText(best?.description,'уточнить')}\nДоставка: ${deliveryText}\nVIN: ${vin||'не указан'}`:`Проверить запчасть:\nЗапрос: ${q}\nVIN: ${vin||'не указан'}`;
   const nameInput=window.prompt('Ваше имя для заявки');
   if(!nameInput)return;
   const phoneInput=window.prompt('Ваш телефон для связи');
   if(!phoneInput)return;
   setRequestState('Отправляем заявку...');
   try{
-   const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:mode==='install'?'installation':'part',name:nameInput,phone:phoneInput,vin,text,request:text,car:'',source:'availability'})});
+   const payload={type:mode==='install'?'installation':'part',source:'availability',name:nameInput,phone:phoneInput,vin,text,request_text:text,car:'',client_price:clientPrice?`${clientPrice} ₽`:'',stock:stockCount,delivery:deliveryText,raw_part:p||null,query:q};
+   const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
    const data=await r.json();
    if(data.ok&&data.saved){setRequestState('Заявка отправлена и сохранена. Менеджер свяжется с вами.');return;}
    if(data.ok){setRequestState('Заявка отправлена. Сохранение в CRM требует проверки.');return;}
