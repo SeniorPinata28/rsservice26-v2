@@ -1,6 +1,6 @@
 import {createLead,dbReady,normalizePhone} from '../../../lib/db.js';
 
-export async function GET(){return Response.json({ok:true,message:'Leads API is running',storage:dbReady()?'supabase + telegram':'not ready'})}
+export async function GET(){return Response.json({ok:false,error:'Method not allowed'},{status:405})}
 
 function value(data,...keys){for(const key of keys){const v=data?.[key];if(v!==undefined&&v!==null&&String(v).trim()!=='')return String(v).trim()}return ''}
 function money(v){return v!==undefined&&v!==null&&String(v).trim()?String(v).trim():''}
