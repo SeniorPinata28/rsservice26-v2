@@ -7,13 +7,13 @@ export const CONTACT_STATUSES=['unverified','verified','confirmed_client','dupli
 export function dbReady(){return Boolean(DB_URL&&DB_KEY)}
 
 export async function db(path,opts={}){
-  if(!dbReady())return {ok:false,configured:false,data:null};
+  if(!dbReady())return {ok:false,configured:false,data:null,error:'Supabase is not configured'};
   const headers={apikey:DB_KEY,Authorization:'Bearer '+DB_KEY,'Content-Type':'application/json',...(opts.headers||{})};
   const res=await fetch(DB_URL.replace(/\/$/,'')+'/rest/v1/'+path,{method:opts.method||'GET',headers,body:opts.body?JSON.stringify(opts.body):undefined,cache:'no-store'});
   const text=await res.text();
   let data=null;
   try{data=text?JSON.parse(text):null}catch(e){data=text}
-  return {ok:res.ok,status:res.status,data};
+  return {ok:res.ok,status:res.status,data,error:res.ok?null:data};
 }
 
 export function normalizePhone(phone){return String(phone||'').replace(/[^0-9+]/g,'').trim()}
@@ -22,10 +22,12 @@ export function normalizeContactStatus(status){return CONTACT_STATUSES.includes(
 export function getContactStatus(lead){return normalizeContactStatus(lead?.raw_payload?.contact_status)}
 
 export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,source,raw}){
+  const now=new Date().toISOString();
   const publicId='RS-'+Date.now().toString().slice(-8);
   const rawPayload={...(raw||{}),contact_status:normalizeContactStatus(raw?.contact_status),lead_status:'new_contact'};
   const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{
     public_id:publicId,
+    created_at:now,
     type:type||'question',
     status:'new_contact',
     source:source||raw?.source||'site',
@@ -39,7 +41,7 @@ export async function createLead({type,name,phone,car,text,vin,mileage,customerI
     request_text:text||null,
     raw_payload:rawPayload
   }]});
-  if(!created.ok)return null;
+  if(!created.ok)throw new Error('Supabase leads insert failed: '+JSON.stringify(created.error||created.data||created.status));
   return Array.isArray(created.data)?created.data[0]:created.data;
 }
 
@@ -105,7 +107,7 @@ export async function confirmLeadAsCustomer(id){
   let customer=await findConfirmedCustomerByPhone(phone);
   if(!customer){
     const created=await db('customers',{method:'POST',headers:{Prefer:'return=representation'},body:[{full_name:lead.name||null,phone,status:'confirmed'}]});
-    if(!created.ok)throw new Error('Не удалось создать клиента');
+    if(!created.ok)throw new Error('Не удалось создать клиента: '+JSON.stringify(created.error||created.data||created.status));
     customer=Array.isArray(created.data)?created.data[0]:created.data;
   }
   const raw={...(lead.raw_payload||{}),contact_status:'confirmed_client'};
