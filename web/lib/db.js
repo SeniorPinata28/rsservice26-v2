@@ -13,22 +13,28 @@ export async function db(path,opts={}){
   return {ok:res.ok,status:res.status,data};
 }
 
-export async function getOrCreateCustomer({name,phone}){
-  const p=String(phone||'').trim();
-  if(!p)return null;
-  const found=await db('customers?phone=eq.'+encodeURIComponent(p)+'&select=id,full_name,phone&limit=1');
-  if(found.ok&&Array.isArray(found.data)&&found.data[0]){
-    await db('customers?id=eq.'+found.data[0].id,{method:'PATCH',headers:{Prefer:'return=representation'},body:{last_activity_at:new Date().toISOString(),...(name&&!found.data[0].full_name?{full_name:name}:{})}});
-    return found.data[0];
-  }
-  const created=await db('customers',{method:'POST',headers:{Prefer:'return=representation'},body:[{full_name:name||null,phone:p,source:'site',status:'new',last_activity_at:new Date().toISOString()}]});
-  if(!created.ok)return null;
-  return Array.isArray(created.data)?created.data[0]:created.data;
+export function normalizePhone(phone){
+  return String(phone||'').trim();
 }
 
 export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,raw}){
   const publicId='RS-'+Date.now().toString().slice(-8);
-  const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{public_id:publicId,type:type||'question',status:'new',source:'site',customer_id:customerId||null,vehicle_id:vehicleId||null,name:name||null,phone:phone||null,car_text:car||null,vin:vin||null,mileage:mileage||null,request_text:text||null,raw_payload:raw||null}]});
+  const payload={...(raw||{}),contact_status:(raw&&raw.contact_status)||'unverified'};
+  const created=await db('leads',{method:'POST',headers:{Prefer:'return=representation'},body:[{
+    public_id:publicId,
+    type:type||'question',
+    status:'new_contact',
+    source:'site',
+    customer_id:customerId||null,
+    vehicle_id:vehicleId||null,
+    name:name||null,
+    phone:normalizePhone(phone)||null,
+    car_text:car||null,
+    vin:vin||null,
+    mileage:mileage||null,
+    request_text:text||null,
+    raw_payload:payload
+  }]});
   if(!created.ok)return null;
   return Array.isArray(created.data)?created.data[0]:created.data;
 }
@@ -52,13 +58,13 @@ export async function updateLeadStatus(id,status){
 }
 
 export async function listCustomers(){
-  const r=await db('customers?select=*&order=created_at.desc&limit=100');
+  const r=await db('customers?select=*&status=eq.confirmed&order=created_at.desc&limit=100');
   if(!r.ok)return [];
   return Array.isArray(r.data)?r.data:[];
 }
 
 export async function getCustomer(id){
-  const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');
+  const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&status=eq.confirmed&select=*&limit=1');
   if(!r.ok||!Array.isArray(r.data))return null;
   return r.data[0]||null;
 }
