@@ -1,10 +1,1 @@
-import {getRosskoCheckoutDetails} from '../../../../lib/rossko-soap';
-
-export async function GET(){
-  try{
-    const result=await getRosskoCheckoutDetails();
-    return Response.json(result);
-  }catch(e){
-    return Response.json({ok:false,error:'Ошибка запроса Rossko checkout details'},{status:500});
-  }
-}
+export async function GET(){return Response.json({ok:false,error:'Method not allowed'},{status:405})}
