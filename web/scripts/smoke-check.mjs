@@ -7,6 +7,7 @@ const required=[
   'app/api/admin/leads/[id]/route.js',
   'app/api/admin/leads/[id]/vehicle/route.js',
   'app/api/admin/customers/[id]/vehicles/route.js',
+  'app/api/cabinet/request-code/route.js',
   'app/api/cabinet/login/route.js',
   'app/admin/page.jsx',
   'app/admin/AdminFilters.jsx',
@@ -24,7 +25,9 @@ const required=[
   'app/contact/ContactClient.jsx',
   'app/parts/PartsClient.jsx',
   'app/cart/CartClient.jsx',
-  'lib/db.js'
+  'lib/db.js',
+  'lib/cabinet-auth.js',
+  '../supabase/cabinet_login_codes.sql'
 ];
 const errors=[];
 function read(file){return fs.readFileSync(path.join(root,file),'utf8')}
@@ -38,14 +41,24 @@ if(!/status:'new_contact'/.test(db))errors.push('new leads must use status new_c
 if(!/createVehicleForCustomer/.test(db))errors.push('vehicle stage requires createVehicleForCustomer helper');
 if(!/linkLeadToVehicle/.test(db))errors.push('vehicle stage requires linkLeadToVehicle helper');
 if(!/findConfirmedCustomerByPhone/.test(db))errors.push('cabinet stage requires confirmed customer lookup by phone');
+if(!/createCabinetLoginCode/.test(db))errors.push('cabinet OTP requires createCabinetLoginCode helper');
+if(!/findActiveCabinetLoginCode/.test(db))errors.push('cabinet OTP requires active code lookup');
 const leadsApi=read('app/api/leads/route.js');
 if(!/if\(!dbReady\(\)\)/.test(leadsApi))errors.push('/api/leads must fail when Supabase is not configured');
 if(!/saved:true/.test(leadsApi))errors.push('/api/leads must only return saved:true after Supabase insert');
 if(!/telegramError/.test(leadsApi))errors.push('/api/leads should expose telegramError without blocking saved lead');
+const requestCodeApi=read('app/api/cabinet/request-code/route.js');
+if(!/findConfirmedCustomerByPhone/.test(requestCodeApi))errors.push('cabinet code request must be limited to confirmed customers');
+if(!/createCabinetLoginCode/.test(requestCodeApi))errors.push('cabinet code request must persist OTP hash');
 const cabinetApi=read('app/api/cabinet/login/route.js');
 if(!/findConfirmedCustomerByPhone/.test(cabinetApi))errors.push('cabinet login must allow only confirmed customers');
+if(!/findActiveCabinetLoginCode/.test(cabinetApi))errors.push('cabinet login must require active OTP');
+if(!/hashOtp/.test(cabinetApi))errors.push('cabinet login must verify OTP hash');
 if(!/getCustomerLeads/.test(cabinetApi))errors.push('cabinet must show customer leads only');
 if(/customer_id\s*=\s*null/.test(cabinetApi))errors.push('cabinet must not expose unconfirmed leads');
+const cabinetClient=read('app/cabinet/CabinetClient.jsx');
+if(!/\/api\/cabinet\/request-code/.test(cabinetClient))errors.push('cabinet UI must request OTP first');
+if(!/\/api\/cabinet\/login/.test(cabinetClient))errors.push('cabinet UI must verify OTP before opening');
 const adminCustomers=read('app/admin/customers/page.jsx');
 if(!/\/admin\/customers\/\$\{c\.id\}/.test(adminCustomers))errors.push('admin customers page must link to customer detail route');
 if(/создаются автоматически по телефону при заявке/.test(adminCustomers))errors.push('old incorrect customer model text still present');
