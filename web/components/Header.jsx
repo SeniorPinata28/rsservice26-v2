@@ -15,7 +15,6 @@ export default function Header(){
       </div>
       <div className="headerActions">
         <a className="phoneLink" href="tel:+79679677042">+7 967 967-70-42<span>позвонить</span></a>
-        <Link className="adminLink" href="/admin">Админка</Link>
       </div>
     </nav>
   </header>
