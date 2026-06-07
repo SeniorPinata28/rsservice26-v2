@@ -1,13 +1,48 @@
-import Header from '../components/Header';import Footer from '../components/Footer';import Link from 'next/link';import {services,parts} from '../data';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import Link from 'next/link';
+import {services,parts,benefits} from '../data';
 
-const serviceCards=[
- {img:'https://images.unsplash.com/photo-1632823471565-1ecdf5c4c44f?auto=format&fit=crop&w=700&q=85'},
- {img:'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=700&q=85'},
- {img:'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=700&q=85'},
- {img:'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&w=700&q=85'},
- {img:'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&w=700&q=85'},
- {img:'https://images.unsplash.com/photo-1603386329225-868f9b1ee6c9?auto=format&fit=crop&w=700&q=85'}
-];
-const partImages=['https://images.unsplash.com/photo-1625047509168-a7026f36de04?auto=format&fit=crop&w=500&q=85','https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=500&q=85','https://images.unsplash.com/photo-1600661653561-629509216228?auto=format&fit=crop&w=500&q=85','https://images.unsplash.com/photo-1560393464-5c69a73c5770?auto=format&fit=crop&w=500&q=85','https://images.unsplash.com/photo-1613214149922-f1809c99b414?auto=format&fit=crop&w=500&q=85','https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=500&q=85'];
-
-export default function Home(){const topServices=services.slice(3,9);const topParts=parts.slice(0,6);return <><Header/><main className="redesignPage"><section className="landingHero"><div className="heroCopy"><span className="kicker">RSService26 · Ставрополь</span><h1>Автосервис и подбор запчастей Hyundai / Kia</h1><p>Проверьте деталь по артикулу, выберите услугу или сразу оставьте заявку на сервис.</p><div className="actionLine"><Link className="btn primary" href="/availability">Проверить запчасть</Link><Link className="btn" href="/booking">Записаться</Link><a className="btn" href="tel:+79679677042">Позвонить</a></div></div><aside className="heroPanel"><b>Быстрый старт</b><Link href="/availability">Найти запчасть</Link><Link href="/services">Выбрать услугу</Link><Link href="/parts">Открыть каталог</Link></aside></section><section className="searchDock"><form action="/availability" className="dockForm"><label><span>Поиск запчасти</span><input className="input" name="q" placeholder="Артикул или точное название"/></label><button className="btn primary">Проверить</button></form><p>Примеры: 28113-1R100 · фильтр масляный · насос масляный · колодки передние</p></section><section className="workflows"><Link href="/availability"><b>01</b><span>Проверить наличие</span><small>По артикулу или точному названию</small></Link><Link href="/booking"><b>02</b><span>Записаться на сервис</span><small>Ремонт, диагностика, ТО</small></Link><Link href="/parts"><b>03</b><span>Каталог деталей</span><small>Популярные позиции для заявки</small></Link></section><section className="showcase"><div className="sectionLead"><span className="kicker">Сервис</span><h2>Основные работы</h2><Link className="textLink" href="/services">Все услуги</Link></div><div className="serviceMasonry">{topServices.map((s,i)=><article className="servicePanel" key={s.name}><div className="servicePhoto" style={{backgroundImage:`url(${serviceCards[i%serviceCards.length].img})`}}/><div><h3>{s.name}</h3><p>{s.time}</p><strong>{s.price}</strong><Link className="btn primary" href="/booking">Записаться</Link></div></article>)}</div></section><section className="showcase partsShowcase"><div className="sectionLead"><span className="kicker">Запчасти</span><h2>Популярные позиции</h2><Link className="textLink" href="/parts">В каталог</Link></div><div className="partStrip">{topParts.map((p,i)=><article className="partPanel" key={p.sku}><div className="partPhoto" style={{backgroundImage:`url(${partImages[i%partImages.length]})`}}/><h3>{p.name}</h3><p>{p.sku}</p><strong>{p.price}</strong><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div></section><section className="finalBand"><div><span className="kicker">Контакт</span><h2>Нужно уточнить задачу?</h2><p>Оставьте вопрос или позвоните. Технический сценарий сайта сохранён: заявки уходят через уже настроенную форму.</p></div><div className="actionLine"><Link className="btn primary" href="/contact">Задать вопрос</Link><Link className="btn" href="/booking">Записаться</Link></div></section></main><Footer/></>}
+export default function Home(){
+  return <><Header/><main className="main">
+    <section className="hero">
+      <span className="badge">Hyundai / Kia · Ставрополь</span>
+      <h1>Сервис и запчасти без лишней суеты</h1>
+      <p>Проверьте наличие запчасти, оставьте заявку или запишитесь на сервис. Менеджер получит обращение и обработает его в админке.</p>
+      <div className="heroActions">
+        <Link className="btn primary" href="/availability">Проверить запчасть</Link>
+        <Link className="btn" href="/booking">Записаться на сервис</Link>
+        <a className="btn" href="tel:+79679677042">Позвонить</a>
+      </div>
+    </section>
+    <section className="section card searchPanel">
+      <h2>Быстрая проверка детали</h2>
+      <p className="muted">Введите артикул или точное название. Если поставщик временно недоступен, заявку всё равно можно отправить менеджеру.</p>
+      <form action="/availability" className="homeSearchForm">
+        <input className="input" name="q" placeholder="Например: 28113-1R100 или насос масляный"/>
+        <button className="btn primary">Проверить</button>
+      </form>
+    </section>
+    <section className="section">
+      <div className="grid">
+        {benefits.map(b=><div className="card" key={b}><span className="badge">✓</span><h3>{b}</h3></div>)}
+      </div>
+    </section>
+    <section className="section">
+      <div className="sectionHead"><h2>Основные действия</h2></div>
+      <div className="grid">
+        <Link className="card" href="/availability"><h3>Проверить запчасть</h3><p className="muted">По артикулу или названию, с заявкой менеджеру.</p></Link>
+        <Link className="card" href="/booking"><h3>Записаться на сервис</h3><p className="muted">Ремонт, диагностика, ТО и установка.</p></Link>
+        <Link className="card" href="/contact"><h3>Задать вопрос</h3><p className="muted">Контактная заявка напрямую менеджеру.</p></Link>
+      </div>
+    </section>
+    <section className="section">
+      <div className="sectionHead"><h2>Популярные услуги</h2><Link className="btn" href="/services">Все услуги</Link></div>
+      <div className="grid">{services.slice(0,3).map(s=><article className="card" key={s.name}><h3>{s.name}</h3><p className="muted">{s.description}</p><p>Срок: <b>{s.time}</b></p><p className="price">{s.price}</p><Link className="btn primary" href="/booking">Записаться</Link></article>)}</div>
+    </section>
+    <section className="section">
+      <div className="sectionHead"><h2>Запчасти в наличии</h2><Link className="btn" href="/parts">Открыть каталог</Link></div>
+      <div className="grid">{parts.slice(0,3).map(p=><article className="card" key={p.sku}><span className="badge">{p.category}</span><h3>{p.name}</h3><p className="muted">{p.sku}</p><p>{p.compatibility}</p><p className="stock">В наличии: {p.stock} шт.</p><p className="price">{p.price}</p><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div>
+    </section>
+  </main><Footer/></>
+}
