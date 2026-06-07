@@ -94,3 +94,28 @@ export async function linkLeadToVehicle(leadId,vehicleId){
   if(!lead.mileage&&vehicle.mileage)patch.mileage=vehicle.mileage;
   return updateLead(lead.id,patch);
 }
+
+export async function createCabinetLoginCode(phone,codeHash,expiresAt){
+  const normalized=normalizePhone(phone);
+  const r=await db('cabinet_login_codes',{method:'POST',headers:{Prefer:'return=representation'},body:[{phone:normalized,code_hash:codeHash,expires_at:expiresAt}]});
+  if(!r.ok)throw new Error('Не удалось сохранить код входа: '+JSON.stringify(r.error||r.data||r.status));
+  return Array.isArray(r.data)?r.data[0]:r.data;
+}
+
+export async function findActiveCabinetLoginCode(phone){
+  const normalized=normalizePhone(phone);
+  const r=await db('cabinet_login_codes?phone=eq.'+encodeURIComponent(normalized)+'&used_at=is.null&expires_at=gt.'+encodeURIComponent(new Date().toISOString())+'&select=*&order=created_at.desc&limit=1');
+  return r.ok&&Array.isArray(r.data)?r.data[0]||null:null;
+}
+
+export async function markCabinetLoginCodeUsed(id){
+  const r=await db('cabinet_login_codes?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{used_at:new Date().toISOString()}});
+  if(!r.ok)throw new Error('Не удалось погасить код входа: '+JSON.stringify(r.error||r.data||r.status));
+  return Array.isArray(r.data)?r.data[0]:r.data;
+}
+
+export async function incrementCabinetLoginAttempts(id,attempts){
+  const next=Number(attempts||0)+1;
+  const r=await db('cabinet_login_codes?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:{attempts:next}});
+  return r.ok?(Array.isArray(r.data)?r.data[0]:r.data):null;
+}
