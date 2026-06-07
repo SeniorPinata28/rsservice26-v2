@@ -1,8 +1,9 @@
 import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Link from 'next/link';
-import {getLead} from '../../../../lib/db.js';
+import {getCustomerVehicles,getLead} from '../../../../lib/db.js';
 import LeadActions from './LeadActions';
+import VehicleLinkForm from './VehicleLinkForm';
 
 function formatDate(value){
   if(!value)return '—';
@@ -36,6 +37,7 @@ export default async function LeadDetails({params}){
   const raw=lead.raw_payload||{};
   const contactStatus=lead.contact_status||raw.contact_status||'unverified';
   const comments=Array.isArray(raw.manager_comments)?raw.manager_comments:[];
+  const customerVehicles=lead.customer_id?await getCustomerVehicles(lead.customer_id):[];
   return <><Header/><main className="main adminPage">
     <section className="adminHero"><div><span className="badge">{typeLabel(lead.type)}</span><h1>{lead.public_id||'Заявка'}</h1><p className="muted">Создана: {formatDate(lead.created_at)} · Статус заявки: {statusLabel(lead.status)} · Статус контакта: {contactLabel(contactStatus)}</p></div><Link className="btn primary" href="/admin">Назад</Link></section>
     <Block title="Основные данные заявки">
@@ -54,6 +56,10 @@ export default async function LeadDetails({params}){
       <Row label="Пробег" value={lead.mileage}/>
       <Row label="Customer ID" value={lead.customer_id}/>
       <Row label="Vehicle ID" value={lead.vehicle_id}/>
+      {lead.customer_id&&<p><Link className="btn" href={`/admin/customers/${lead.customer_id}`}>Открыть клиента</Link>{lead.vehicle_id&&<Link className="btn" href={`/admin/vehicles/${lead.vehicle_id}`} style={{marginLeft:8}}>Открыть автомобиль</Link>}</p>}
+    </Block>
+    <Block title="Привязка автомобиля">
+      {lead.vehicle_id?<p className="muted">Заявка уже привязана к автомобилю.</p>:lead.customer_id?<VehicleLinkForm leadId={lead.id} vehicles={customerVehicles}/>:<p className="muted">Сначала подтвердите контакт как клиента, затем добавьте автомобиль в карточке клиента и привяжите заявку.</p>}
     </Block>
     <Block title="Текст заявки"><pre style={{whiteSpace:'pre-wrap',fontFamily:'inherit',fontSize:16,lineHeight:1.45,margin:0}}>{lead.request_text||'—'}</pre></Block>
     <LeadActions lead={lead}/>
