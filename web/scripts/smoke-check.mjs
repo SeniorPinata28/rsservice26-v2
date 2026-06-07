@@ -7,6 +7,7 @@ const required=[
   'app/api/admin/leads/[id]/route.js',
   'app/api/admin/leads/[id]/vehicle/route.js',
   'app/api/admin/customers/[id]/vehicles/route.js',
+  'app/api/cabinet/login/route.js',
   'app/admin/page.jsx',
   'app/admin/AdminFilters.jsx',
   'app/admin/leads/[id]/page.jsx',
@@ -16,6 +17,8 @@ const required=[
   'app/admin/customers/[id]/page.jsx',
   'app/admin/customers/[id]/CustomerVehicleForm.jsx',
   'app/admin/vehicles/[id]/page.jsx',
+  'app/cabinet/page.jsx',
+  'app/cabinet/CabinetClient.jsx',
   'app/availability/AvailabilityClient.jsx',
   'app/booking/BookingClient.jsx',
   'app/contact/ContactClient.jsx',
@@ -34,10 +37,15 @@ if(!/vehicle_id:vehicleId\|\|null/.test(db))errors.push('createLead must not aut
 if(!/status:'new_contact'/.test(db))errors.push('new leads must use status new_contact');
 if(!/createVehicleForCustomer/.test(db))errors.push('vehicle stage requires createVehicleForCustomer helper');
 if(!/linkLeadToVehicle/.test(db))errors.push('vehicle stage requires linkLeadToVehicle helper');
+if(!/findConfirmedCustomerByPhone/.test(db))errors.push('cabinet stage requires confirmed customer lookup by phone');
 const leadsApi=read('app/api/leads/route.js');
 if(!/if\(!dbReady\(\)\)/.test(leadsApi))errors.push('/api/leads must fail when Supabase is not configured');
 if(!/saved:true/.test(leadsApi))errors.push('/api/leads must only return saved:true after Supabase insert');
 if(!/telegramError/.test(leadsApi))errors.push('/api/leads should expose telegramError without blocking saved lead');
+const cabinetApi=read('app/api/cabinet/login/route.js');
+if(!/findConfirmedCustomerByPhone/.test(cabinetApi))errors.push('cabinet login must allow only confirmed customers');
+if(!/getCustomerLeads/.test(cabinetApi))errors.push('cabinet must show customer leads only');
+if(/customer_id\s*=\s*null/.test(cabinetApi))errors.push('cabinet must not expose unconfirmed leads');
 const adminCustomers=read('app/admin/customers/page.jsx');
 if(!/\/admin\/customers\/\$\{c\.id\}/.test(adminCustomers))errors.push('admin customers page must link to customer detail route');
 if(/создаются автоматически по телефону при заявке/.test(adminCustomers))errors.push('old incorrect customer model text still present');
