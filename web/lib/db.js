@@ -59,3 +59,38 @@ export async function listVehicles(){const r=await db('vehicles?select=*&order=c
 export async function getVehicle(id){const r=await db('vehicles?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
 export async function getVehicleLeads(vehicleId){const r=await db('leads?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getVehicleServiceHistory(vehicleId){const r=await db('service_history?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=service_date.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
+
+function trimOrNull(value){const text=String(value||'').trim();return text||null}
+function numberOrNull(value){const n=Number(value);return Number.isFinite(n)&&String(value).trim()!==''?n:null}
+function vehicleCarText(data){return trimOrNull(data.car_text)||[trimOrNull(data.brand),trimOrNull(data.model),trimOrNull(data.year)].filter(Boolean).join(' ')||trimOrNull(data.vin)||'Автомобиль клиента'}
+async function createVehicleVariant(body){const created=await db('vehicles',{method:'POST',headers:{Prefer:'return=representation'},body:[body]});if(!created.ok)return {ok:false,error:created.error||created.data||created.status};return {ok:true,vehicle:Array.isArray(created.data)?created.data[0]:created.data}}
+
+export async function createVehicleForCustomer(customerId,data={}){
+  const customer=await getCustomer(customerId);
+  if(!customer)throw new Error('Клиент не найден');
+  const carText=vehicleCarText(data);
+  const base={customer_id:customerId,car_text:carText,brand:trimOrNull(data.brand),model:trimOrNull(data.model),year:numberOrNull(data.year),vin:trimOrNull(data.vin),plate_number:trimOrNull(data.plate_number),mileage:numberOrNull(data.mileage)};
+  const variants=[
+    base,
+    {customer_id:customerId,car_text:carText,vin:base.vin,plate_number:base.plate_number,mileage:base.mileage},
+    {customer_id:customerId,car_text:carText,vin:base.vin,mileage:base.mileage},
+    {customer_id:customerId,car_text:carText,vin:base.vin},
+    {customer_id:customerId,car_text:carText},
+    {customer_id:customerId,vin:base.vin},
+    {customer_id:customerId}
+  ];
+  let lastError=null;
+  for(const body of variants){const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined));const attempt=await createVehicleVariant(clean);if(attempt.ok)return {vehicle:attempt.vehicle,customer};lastError=attempt.error}
+  throw new Error('Не удалось создать автомобиль: '+JSON.stringify(lastError));
+}
+
+export async function linkLeadToVehicle(leadId,vehicleId){
+  const lead=await getLead(leadId);if(!lead)throw new Error('Заявка не найдена');
+  const vehicle=await getVehicle(vehicleId);if(!vehicle)throw new Error('Автомобиль не найден');
+  const patch={vehicle_id:vehicle.id};
+  if(vehicle.customer_id)patch.customer_id=vehicle.customer_id;
+  if(!lead.car_text&&(vehicle.car_text||vehicle.brand||vehicle.model))patch.car_text=vehicle.car_text||[vehicle.brand,vehicle.model,vehicle.year].filter(Boolean).join(' ');
+  if(!lead.vin&&vehicle.vin)patch.vin=vehicle.vin;
+  if(!lead.mileage&&vehicle.mileage)patch.mileage=vehicle.mileage;
+  return updateLead(lead.id,patch);
+}
