@@ -7,7 +7,7 @@ export default function BookingClient(){
   e.preventDefault();setError('');
   const text=`Запись на сервис:\nУслуга: ${service}\nАвтомобиль: ${car}\nЖелаемая дата: ${date||'уточнить'}\nКомментарий: ${comment||'нет'}`;
   try{
-   const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'service',source:'booking',name,phone,car,text,request_text:text})});
+   const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'service_booking',source:'booking',name,phone,car,text,request_text:text,preferred_date:date,symptoms_list:service,comment})});
    const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
    if(!data.ok){setError(data.error||'Не удалось отправить заявку');return}
    setOk(true);
