@@ -15,8 +15,9 @@ export default function PartsClient(){
   e.preventDefault();
   if(!selected)return;
   const {p,mode}=selected;
+  const type=mode==='install'?'installation_booking':'parts_order';
   const text=`${mode==='install'?'Записать на установку':'Заказать запчасть'}:\n${p.name}\nАртикул: ${p.sku}\nЦена клиенту: ${p.price}\nСовместимость: ${p.compatibility}\nКомментарий: ${form.comment||'нет'}`;
-  const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:mode==='install'?'installation':'part',source:'parts_catalog',name:form.name,phone:form.phone,car:form.car,vin:form.vin,text,request_text:text,client_price:p.price,stock:p.stock,raw_part:p})});
+  const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,source:'parts_catalog',name:form.name,phone:form.phone,car:form.car,vin:form.vin,text,request_text:text,client_price:p.price,stock:p.stock,raw_part:p,comment:form.comment})});
   const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
   if(data.ok){setMsg('Заявка отправлена. Менеджер свяжется с вами.');setSelected(null);setForm({name:'',phone:'',car:'',vin:'',comment:''});return}
   setMsg(data.error||'Не удалось отправить заявку');
