@@ -11,6 +11,7 @@ export default function Header(){
         <Link href="/availability">Проверить запчасть</Link>
         <Link href="/booking">Записаться</Link>
         <Link href="/parts">Каталог</Link>
+        <Link href="/cabinet">Кабинет</Link>
         <Link href="/contact">Контакты</Link>
       </div>
       <div className="headerActions">
