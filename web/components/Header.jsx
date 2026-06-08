@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 export default function Header(){
+  const cabinetEnabled=process.env.NEXT_PUBLIC_CABINET_ENABLED==='true';
   return <header className="header">
     <nav className="nav">
       <Link className="brand" href="/">
@@ -11,7 +12,7 @@ export default function Header(){
         <Link href="/availability">Проверить запчасть</Link>
         <Link href="/booking">Записаться</Link>
         <Link href="/parts">Каталог</Link>
-        <Link href="/cabinet">Кабинет</Link>
+        {cabinetEnabled&&<Link href="/cabinet">Кабинет</Link>}
         <Link href="/contact">Контакты</Link>
       </div>
       <div className="headerActions">
