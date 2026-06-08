@@ -17,6 +17,8 @@ function vehicleNotes(data,current={}){
   const plate=trimOrNull(data.plate_number||data.license_plate||data.gos_number);
   const vin=trimOrNull(data.vin);
   const mileage=trimOrNull(data.mileage);
+  const carText=vehicleCarText(data,current);
+  if(carText)items.push(`Автомобиль: ${carText}`);
   if(plate)items.push(`Госномер: ${plate}`);
   if(vin)items.push(`VIN: ${vin}`);
   if(mileage)items.push(`Пробег: ${mileage}`);
@@ -40,7 +42,7 @@ export async function updateVehicleResilient(vehicleId,data={}){
   const plate=trimOrNull(data.plate_number||data.license_plate||data.gos_number);
   const mileage=numberOrNull(data.mileage);
   const notes=vehicleNotes(data,current);
-  const raw_payload={...(current.raw_payload||{}),...data,edited_at:new Date().toISOString(),source:'admin_vehicle_edit'};
+  const raw_payload={...(current.raw_payload||{}),...data,car_text:carText,edited_at:new Date().toISOString(),source:'admin_vehicle_edit'};
   const variants=[
     {car_text:carText,brand,model,year,vin,plate_number:plate,license_plate:plate,mileage,notes,raw_payload},
     {car_text:carText,brand,model,year,vin,plate_number:plate,mileage,notes},
@@ -48,17 +50,23 @@ export async function updateVehicleResilient(vehicleId,data={}){
     {car_text:carText,brand,model,year,vin,mileage,notes},
     {car_text:carText,brand,model,vin,mileage,notes},
     {car_text:carText,brand,model,vin,notes},
-    {car_text:carText,vin,plate_number:plate,mileage,notes},
-    {car_text:carText,vin,license_plate:plate,mileage,notes},
-    {car_text:carText,vin,mileage,notes},
-    {car_text:carText,vin,notes},
-    {car_text:carText,notes},
-    {car_text:carText,vin},
-    {car_text:carText}
+    {brand,model,year,vin,plate_number:plate,license_plate:plate,mileage,notes,raw_payload},
+    {brand,model,year,vin,plate_number:plate,mileage,notes},
+    {brand,model,year,vin,license_plate:plate,mileage,notes},
+    {brand,model,year,vin,mileage,notes},
+    {brand,model,vin,mileage,notes},
+    {brand,model,vin,notes},
+    {vin,plate_number:plate,mileage,notes},
+    {vin,license_plate:plate,mileage,notes},
+    {vin,mileage,notes},
+    {vin,notes},
+    {notes},
+    {vin}
   ];
   let lastError=null;
   for(const body of variants){
     const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined&&v!==null&&v!==''));
+    if(Object.keys(clean).length===0)continue;
     const attempt=await patchVehicleVariant(vehicleId,clean);
     if(attempt.ok)return {vehicle:attempt.vehicle};
     lastError=attempt.error;
