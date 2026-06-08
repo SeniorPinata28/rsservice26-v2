@@ -28,8 +28,12 @@ const required=[
   'app/cart/CartClient.jsx',
   'lib/db.js',
   'lib/cabinet-auth.js',
+  'lib/rate-limit.js',
+  'scripts/live-smoke.mjs',
   '../supabase/cabinet_login_codes.sql',
-  '../supabase/rsservice26_core_schema.sql'
+  '../supabase/rsservice26_core_schema.sql',
+  '../supabase/rate_limits.sql',
+  '../supabase/normalize_customer_status.sql'
 ];
 const errors=[];
 function filePath(file){return path.join(root,file)}
@@ -92,14 +96,31 @@ if(!/create table if not exists public\.cabinet_login_codes/.test(otpSql))errors
 if(!/cabinet_login_codes_phone_created_idx/.test(otpSql))errors.push('cabinet_login_codes SQL must include phone index');
 if(!/cabinet_login_codes_expires_idx/.test(otpSql))errors.push('cabinet_login_codes SQL must include expires index');
 
+const rateLimitSql=read('../supabase/rate_limits.sql');
+if(!/create table if not exists public\.rate_limits/.test(rateLimitSql))errors.push('rate_limits SQL must create rate limit table');
+if(!/rate_limits_scope_identifier_created_idx/.test(rateLimitSql))errors.push('rate_limits SQL must include scope identifier index');
+const normalizeCustomerSql=read('../supabase/normalize_customer_status.sql');
+if(!/set status = 'confirmed'/.test(normalizeCustomerSql))errors.push('customer status normalization SQL must set confirmed');
+if(!/alter table public\.customers/.test(normalizeCustomerSql))errors.push('customer status normalization SQL must set default');
+
+const rateLimitHelper=read('lib/rate-limit.js');
+if(!/checkRateLimit/.test(rateLimitHelper))errors.push('rate limit helper must export checkRateLimit');
+if(!/rateLimitResponse/.test(rateLimitHelper))errors.push('rate limit helper must export rateLimitResponse');
+if(!/Retry-After/.test(rateLimitHelper))errors.push('rate limit responses must include Retry-After');
+if(!/rate_limits/.test(rateLimitHelper))errors.push('rate limit helper should use persistent rate_limits table when available');
+
 const leadsApi=read('app/api/leads/route.js');
 if(!/if\(!dbReady\(\)\)/.test(leadsApi))errors.push('/api/leads must fail when Supabase is not configured');
 if(!/saved:true/.test(leadsApi))errors.push('/api/leads must only return saved:true after Supabase insert');
 if(!/telegramError/.test(leadsApi))errors.push('/api/leads should expose telegramError without blocking saved lead');
+if(!/checkRateLimit/.test(leadsApi))errors.push('/api/leads must apply rate limit');
+if(!/LEADS_RATE_LIMIT_WINDOW_SECONDS/.test(leadsApi))errors.push('/api/leads must expose rate limit env tuning');
 
 const requestCodeApi=read('app/api/cabinet/request-code/route.js');
 if(!/findConfirmedCustomerByPhone/.test(requestCodeApi))errors.push('cabinet code request must be limited to confirmed customers');
 if(!/createCabinetLoginCode/.test(requestCodeApi))errors.push('cabinet code request must persist OTP hash');
+if(!/checkRateLimit/.test(requestCodeApi))errors.push('cabinet code request must apply rate limit');
+if(!/CABINET_OTP_RATE_LIMIT_WINDOW_SECONDS/.test(requestCodeApi))errors.push('cabinet OTP rate limit must expose env tuning');
 const cabinetAuth=read('lib/cabinet-auth.js');
 if(!/CABINET_OTP_PROVIDER/.test(cabinetAuth))errors.push('cabinet delivery must be provider-gated');
 if(!/provider==='console'/.test(cabinetAuth))errors.push('console OTP provider should exist only as explicit provider');
@@ -113,6 +134,12 @@ if(/customer_id\s*=\s*null/.test(cabinetApi))errors.push('cabinet must not expos
 const cabinetClient=read('app/cabinet/CabinetClient.jsx');
 if(!/\/api\/cabinet\/request-code/.test(cabinetClient))errors.push('cabinet UI must request OTP first');
 if(!/\/api\/cabinet\/login/.test(cabinetClient))errors.push('cabinet UI must verify OTP before opening');
+
+const liveSmoke=read('scripts/live-smoke.mjs');
+if(!/SMOKE_BASE_URL/.test(liveSmoke))errors.push('live smoke must require SMOKE_BASE_URL');
+if(!/purchasePrice/.test(liveSmoke))errors.push('live smoke must check purchasePrice leak');
+if(!/\/api\/admin/.test(liveSmoke))errors.push('live smoke must check admin API protection');
+if(!/\/api\/leads/.test(liveSmoke))errors.push('live smoke must check public leads endpoint');
 
 const adminCustomers=read('app/admin/customers/page.jsx');
 if(!/\/admin\/customers\/\$\{c\.id\}/.test(adminCustomers))errors.push('admin customers page must link to customer detail route');
