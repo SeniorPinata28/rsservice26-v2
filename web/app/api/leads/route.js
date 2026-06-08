@@ -1,4 +1,5 @@
 import {createLead,dbReady,normalizePhone} from '../../../lib/db.js';
+import {checkRateLimit,rateLimitResponse} from '../../../lib/rate-limit.js';
 
 export async function GET(){return Response.json({ok:false,error:'Method not allowed'},{status:405})}
 
@@ -17,6 +18,16 @@ export async function POST(request){
     const source=value(data,'source')||'site';
     const text=value(data,'request_text','text','message','comment','request')||'Заявка без текста';
     if(!name||!phone||!text){return Response.json({ok:false,error:'Заполните имя, телефон и текст заявки'},{status:400})}
+
+    const limit=await checkRateLimit({
+      request,
+      scope:'leads',
+      phone,
+      windowSeconds:Number(process.env.LEADS_RATE_LIMIT_WINDOW_SECONDS||60),
+      limit:Number(process.env.LEADS_RATE_LIMIT_MAX||3)
+    });
+    if(!limit.ok)return rateLimitResponse(limit,'Слишком много заявок. Попробуйте отправить повторно позже или позвоните менеджеру.');
+
     if(!dbReady()){return Response.json({ok:false,error:'Supabase не настроен. Заявка не сохранена.'},{status:500})}
 
     const raw={...data,source,contact_status:'unverified',lead_status:'new_contact'};
