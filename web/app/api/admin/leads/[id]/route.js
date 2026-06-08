@@ -1,4 +1,5 @@
 import {addManagerComment,confirmLeadAsCustomer,updateLeadContactStatus,updateLeadStatus} from '../../../../../lib/db.js';
+import {deleteLeadAdmin,updateLeadDetails} from '../../../../../lib/admin-edit.js';
 
 export async function PATCH(request,{params}){
   try{
@@ -10,10 +11,20 @@ export async function PATCH(request,{params}){
     else if(action==='contact_status')result=await updateLeadContactStatus(id,data.contact_status);
     else if(action==='comment')result=await addManagerComment(id,data.comment);
     else if(action==='confirm_customer')result=await confirmLeadAsCustomer(id);
+    else if(action==='edit')result=await updateLeadDetails(id,data);
     else return Response.json({ok:false,error:'Неизвестное действие'},{status:400});
     if(!result)return Response.json({ok:false,error:'Не удалось обновить заявку'},{status:400});
     return Response.json({ok:true,result});
   }catch(e){
     return Response.json({ok:false,error:'Ошибка админского действия',details:String(e?.message||e)},{status:500});
+  }
+}
+
+export async function DELETE(request,{params}){
+  try{
+    const result=await deleteLeadAdmin(params.id);
+    return Response.json({ok:true,result});
+  }catch(e){
+    return Response.json({ok:false,error:'Не удалось удалить заявку',details:String(e?.message||e)},{status:500});
   }
 }
