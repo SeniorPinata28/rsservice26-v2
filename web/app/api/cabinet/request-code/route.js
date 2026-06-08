@@ -1,5 +1,6 @@
 import {createCabinetLoginCode,dbReady,findConfirmedCustomerByPhone,normalizePhone} from '../../../../lib/db.js';
 import {canExposeDevCode,deliverCabinetCode,generateOtp,hashOtp,otpExpiresAt} from '../../../../lib/cabinet-auth.js';
+import {checkRateLimit,rateLimitResponse} from '../../../../lib/rate-limit.js';
 
 export async function POST(request){
   try{
@@ -7,6 +8,15 @@ export async function POST(request){
     const data=await request.json().catch(()=>({}));
     const phone=normalizePhone(data.phone);
     if(!phone)return Response.json({ok:false,error:'Введите телефон'},{status:400});
+
+    const limit=await checkRateLimit({
+      request,
+      scope:'cabinet_otp',
+      phone,
+      windowSeconds:Number(process.env.CABINET_OTP_RATE_LIMIT_WINDOW_SECONDS||120),
+      limit:Number(process.env.CABINET_OTP_RATE_LIMIT_MAX||1)
+    });
+    if(!limit.ok)return rateLimitResponse(limit,'Код уже запрошен. Подождите перед повторной отправкой.');
 
     const customer=await findConfirmedCustomerByPhone(phone);
     if(!customer){
