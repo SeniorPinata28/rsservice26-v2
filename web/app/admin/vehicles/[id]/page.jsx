@@ -2,6 +2,7 @@ import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Link from 'next/link';
 import {getCustomer,getVehicle,getVehicleLeads,getVehicleServiceHistory} from '../../../../lib/db.js';
+import ServiceHistoryForm from './ServiceHistoryForm';
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function vehicleTitle(v){return v.car_text||[v.brand||v.make,v.model,v.year].filter(Boolean).join(' ')||v.vin||'Автомобиль'}
@@ -26,6 +27,13 @@ export default async function VehicleDetails({params}){
       <Row label="Пробег" value={vehicle.mileage}/>
       <Row label="Клиент" value={customer?nameOf(customer):'не привязан'}/>
     </Block>
+    <Block title="Добавить запись обслуживания">
+      <ServiceHistoryForm vehicleId={vehicle.id}/>
+    </Block>
+    <Block title="История обслуживания">
+      {history.length===0&&<p className="muted">Отдельная история обслуживания пока не заполнена.</p>}
+      {history.map(item=><div className="leadRow" key={item.id}><div><b>{item.title||item.service_name||'Работа'}</b><small>{formatDate(item.service_date||item.created_at)}</small></div><div><span>{item.mileage||'пробег не указан'}</span><small>{item.price||item.total||''}</small></div><p>{item.comment||item.description||'—'}</p></div>)}
+    </Block>
     <Block title="История заявок по автомобилю">
       {leads.length===0&&<p className="muted">Заявок по этому автомобилю пока нет.</p>}
       {leads.map(lead=><Link className="leadRow" href={`/admin/leads/${lead.id}`} key={lead.id}>
@@ -34,10 +42,6 @@ export default async function VehicleDetails({params}){
         <div><span>{lead.phone||'телефон не указан'}</span><small>{lead.name||'имя не указано'}</small></div>
         <p>{lead.request_text||'Без текста'}</p>
       </Link>)}
-    </Block>
-    <Block title="История обслуживания">
-      {history.length===0&&<p className="muted">Отдельная история обслуживания пока не заполнена. Сейчас источник истории — заявки по автомобилю выше.</p>}
-      {history.map(item=><div className="leadRow" key={item.id}><div><b>{item.title||item.service_name||'Работа'}</b><small>{formatDate(item.service_date||item.created_at)}</small></div><div><span>{item.mileage||'пробег не указан'}</span><small>{item.price||item.total||''}</small></div><p>{item.comment||item.description||'—'}</p></div>)}
     </Block>
   </main><Footer/></>
 }
