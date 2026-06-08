@@ -2,7 +2,7 @@ import {db,getCustomer,getLead,getVehicle,normalizePhone,updateLead} from './db.
 
 function trimOrNull(value){const text=String(value||'').trim();return text||null}
 function numberOrNull(value){const n=Number(String(value||'').replace(',','.'));return Number.isFinite(n)&&String(value||'').trim()!==''?n:null}
-function cleanPatch(obj){return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined))}
+function cleanPatch(obj){return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined&&v!==null&&v!==''))}
 
 export async function updateLeadDetails(id,data={}){
   const lead=await getLead(id);
@@ -28,21 +28,44 @@ export async function deleteLeadAdmin(id){
   return {id};
 }
 
+async function patchCustomerVariant(id,body){
+  const r=await db('customers?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body});
+  if(!r.ok)return {ok:false,error:r.error||r.data||r.status};
+  return {ok:true,customer:Array.isArray(r.data)?r.data[0]:r.data};
+}
+
 export async function updateCustomerDetails(id,data={}){
   const customer=await getCustomer(id);
   if(!customer)throw new Error('Клиент не найден');
-  const patch=cleanPatch({
-    full_name:trimOrNull(data.full_name||data.name),
-    name:trimOrNull(data.name||data.full_name),
-    phone:normalizePhone(data.phone)||null,
-    email:trimOrNull(data.email),
-    internal_notes:trimOrNull(data.internal_notes),
-    client_notes:trimOrNull(data.client_notes),
-    status:trimOrNull(data.status)||'confirmed'
-  });
-  const r=await db('customers?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:patch});
-  if(!r.ok)throw new Error('Не удалось обновить клиента: '+JSON.stringify(r.error||r.data||r.status));
-  return Array.isArray(r.data)?r.data[0]:r.data;
+  const fullName=trimOrNull(data.full_name||data.name);
+  const phone=normalizePhone(data.phone)||null;
+  const email=trimOrNull(data.email);
+  const internalNotes=trimOrNull(data.internal_notes);
+  const clientNotes=trimOrNull(data.client_notes);
+  const status=trimOrNull(data.status)||'confirmed';
+  const variants=[
+    {full_name:fullName,phone,email,status,internal_notes:internalNotes,client_notes:clientNotes},
+    {full_name:fullName,phone,email,status,internal_notes:internalNotes},
+    {full_name:fullName,phone,email,status},
+    {full_name:fullName,phone,status},
+    {full_name:fullName,phone},
+    {name:fullName,phone,email,status,internal_notes:internalNotes,client_notes:clientNotes},
+    {name:fullName,phone,email,status},
+    {name:fullName,phone,status},
+    {phone,email,status,internal_notes:internalNotes,client_notes:clientNotes},
+    {phone,email,status},
+    {phone,status},
+    {phone}
+  ];
+  let lastError=null;
+  for(const body of variants){
+    const patch=cleanPatch(body);
+    if(Object.keys(patch).length===0)continue;
+    const attempt=await patchCustomerVariant(id,patch);
+    if(attempt.ok)return attempt.customer;
+    lastError=attempt.error;
+  }
+  throw new Error('Не удалось обновить клиента: '+JSON.stringify(lastError));
 }
 
 export async function updateVehicleDetails(id,data={}){
