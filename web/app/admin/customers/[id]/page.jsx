@@ -2,6 +2,7 @@ import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Link from 'next/link';
 import {getCustomer,getCustomerLeads,getCustomerVehicles} from '../../../../lib/db.js';
+import CustomerEditForm from './CustomerEditForm';
 import CustomerVehicleForm from './CustomerVehicleForm';
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
@@ -28,6 +29,9 @@ export default async function CustomerDetails({params}){
       <Row label="Статус" value={customer.status||'confirmed'}/>
       <Row label="Создан" value={formatDate(customer.created_at)}/>
       <Row label="Источник" value={customer.source}/>
+    </Block>
+    <Block title="Редактировать клиента">
+      <CustomerEditForm customer={customer}/>
     </Block>
     <Block title="Добавить автомобиль">
       <CustomerVehicleForm customerId={customer.id}/>
