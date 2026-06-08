@@ -3,8 +3,10 @@ import Footer from '../../../../components/Footer';
 import Link from 'next/link';
 import {getCustomer,getVehicle,getVehicleLeads,getVehicleServiceHistory} from '../../../../lib/db.js';
 import ServiceHistoryForm from './ServiceHistoryForm';
+import VehicleEditForm from './VehicleEditForm';
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
+function noteValue(notes,label){return String(notes||'').match(new RegExp(label+':\\s*([^\\n]+)','i'))?.[1]||''}
 function vehicleTitle(v){return v.car_text||[v.brand||v.make,v.model,v.year].filter(Boolean).join(' ')||v.vin||'Автомобиль'}
 function nameOf(c){return c?.full_name||c?.name||'Клиент'}
 function leadType(type){const map={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Сервис',general_callback:'Вопрос',parts_selection_request:'Подбор',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};return map[type]||type||'Заявка'}
@@ -22,10 +24,13 @@ export default async function VehicleDetails({params}){
       <Row label="Марка" value={vehicle.brand||vehicle.make}/>
       <Row label="Модель" value={vehicle.model}/>
       <Row label="Год" value={vehicle.year}/>
-      <Row label="VIN" value={vehicle.vin}/>
-      <Row label="Госномер" value={vehicle.plate_number||vehicle.license_plate}/>
-      <Row label="Пробег" value={vehicle.mileage}/>
+      <Row label="VIN" value={vehicle.vin||noteValue(vehicle.notes,'VIN')}/>
+      <Row label="Госномер" value={vehicle.plate_number||vehicle.license_plate||noteValue(vehicle.notes,'Госномер')}/>
+      <Row label="Пробег" value={vehicle.mileage||noteValue(vehicle.notes,'Пробег')}/>
       <Row label="Клиент" value={customer?nameOf(customer):'не привязан'}/>
+    </Block>
+    <Block title="Редактировать данные автомобиля">
+      <VehicleEditForm vehicle={vehicle}/>
     </Block>
     <Block title="Добавить запись обслуживания">
       <ServiceHistoryForm vehicleId={vehicle.id}/>
