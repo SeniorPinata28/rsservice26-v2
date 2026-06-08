@@ -3,6 +3,7 @@ import Footer from '../../../../components/Footer';
 import Link from 'next/link';
 import {getCustomerVehicles,getLead} from '../../../../lib/db.js';
 import LeadActions from './LeadActions';
+import LeadEditForm from './LeadEditForm';
 import VehicleLinkForm from './VehicleLinkForm';
 
 function formatDate(value){
@@ -57,6 +58,9 @@ export default async function LeadDetails({params}){
       <Row label="Customer ID" value={lead.customer_id}/>
       <Row label="Vehicle ID" value={lead.vehicle_id}/>
       {lead.customer_id&&<p><Link className="btn" href={`/admin/customers/${lead.customer_id}`}>Открыть клиента</Link>{lead.vehicle_id&&<Link className="btn" href={`/admin/vehicles/${lead.vehicle_id}`} style={{marginLeft:8}}>Открыть автомобиль</Link>}</p>}
+    </Block>
+    <Block title="Редактировать заявку">
+      <LeadEditForm lead={lead}/>
     </Block>
     <Block title="Привязка автомобиля">
       {lead.vehicle_id?<p className="muted">Заявка уже привязана к автомобилю.</p>:lead.customer_id?<VehicleLinkForm leadId={lead.id} vehicles={customerVehicles}/>:<p className="muted">Сначала подтвердите контакт как клиента, затем добавьте автомобиль в карточке клиента и привяжите заявку.</p>}
