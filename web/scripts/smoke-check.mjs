@@ -8,6 +8,7 @@ const required=[
   'app/api/admin/leads/[id]/route.js',
   'app/api/admin/leads/[id]/vehicle/route.js',
   'app/api/admin/customers/[id]/vehicles/route.js',
+  'app/api/admin/vehicles/[id]/service-history/route.js',
   'app/api/cabinet/request-code/route.js',
   'app/api/cabinet/login/route.js',
   'app/admin/page.jsx',
@@ -19,6 +20,7 @@ const required=[
   'app/admin/customers/[id]/page.jsx',
   'app/admin/customers/[id]/CustomerVehicleForm.jsx',
   'app/admin/vehicles/[id]/page.jsx',
+  'app/admin/vehicles/[id]/ServiceHistoryForm.jsx',
   'app/cabinet/page.jsx',
   'app/cabinet/CabinetClient.jsx',
   'app/availability/AvailabilityClient.jsx',
@@ -29,6 +31,7 @@ const required=[
   'lib/db.js',
   'lib/cabinet-auth.js',
   'lib/rate-limit.js',
+  'lib/service-history.js',
   'scripts/live-smoke.mjs',
   '../supabase/cabinet_login_codes.sql',
   '../supabase/rsservice26_core_schema.sql',
@@ -134,6 +137,18 @@ if(/customer_id\s*=\s*null/.test(cabinetApi))errors.push('cabinet must not expos
 const cabinetClient=read('app/cabinet/CabinetClient.jsx');
 if(!/\/api\/cabinet\/request-code/.test(cabinetClient))errors.push('cabinet UI must request OTP first');
 if(!/\/api\/cabinet\/login/.test(cabinetClient))errors.push('cabinet UI must verify OTP before opening');
+
+const serviceHistoryHelper=read('lib/service-history.js');
+if(!/createServiceHistoryForVehicle/.test(serviceHistoryHelper))errors.push('service history helper must export createServiceHistoryForVehicle');
+if(!/service_history/.test(serviceHistoryHelper))errors.push('service history helper must write to service_history');
+const serviceHistoryApi=read('app/api/admin/vehicles/[id]/service-history/route.js');
+if(!/createServiceHistoryForVehicle/.test(serviceHistoryApi))errors.push('service history API must use helper');
+const vehiclePage=read('app/admin/vehicles/[id]/page.jsx');
+if(!/ServiceHistoryForm/.test(vehiclePage))errors.push('vehicle page must include service history form');
+if(!/Добавить запись обслуживания/.test(vehiclePage))errors.push('vehicle page must expose add service history section');
+const serviceHistoryForm=read('app/admin/vehicles/[id]/ServiceHistoryForm.jsx');
+if(!/\/api\/admin\/vehicles\/\$\{vehicleId\}\/service-history/.test(serviceHistoryForm))errors.push('service history form must post to admin API');
+if(!/router\.refresh/.test(serviceHistoryForm))errors.push('service history form must refresh vehicle page after save');
 
 const liveSmoke=read('scripts/live-smoke.mjs');
 if(!/SMOKE_BASE_URL/.test(liveSmoke))errors.push('live smoke must require SMOKE_BASE_URL');
