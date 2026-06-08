@@ -1,4 +1,4 @@
-import {createServiceHistoryForVehicle} from '../../../../../../lib/db.js';
+import {createServiceHistoryForVehicle} from '../../../../../../lib/service-history.js';
 
 export async function POST(request,{params}){
   try{
