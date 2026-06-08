@@ -6,10 +6,12 @@ import CustomerVehicleForm from './CustomerVehicleForm';
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function nameOf(c){return c?.full_name||c?.name||'Без имени'}
-function vehicleTitle(v){return v.car_text||[v.brand||v.make,v.model,v.year].filter(Boolean).join(' ')||v.vin||'Автомобиль'}
+function vehicleTitle(v){return v.car_text||[v.brand||v.make,v.model,v.year].filter(Boolean).join(' ')||'Автомобиль без описания'}
 function leadType(type){const map={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Сервис',general_callback:'Вопрос',parts_selection_request:'Подбор',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};return map[type]||type||'Заявка'}
 function Block({title,children}){return <section className="card" style={{padding:22,marginTop:18}}><h2 style={{marginTop:0}}>{title}</h2>{children}</section>}
 function Row({label,value}){return <p style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:12,margin:'10px 0'}}><b>{label}</b><span>{value||'—'}</span></p>}
+function Stack({children}){return <div style={{display:'grid',gap:4}}>{children}</div>}
+function Small({children}){return <small style={{display:'block',color:'#64748b',lineHeight:1.3}}>{children}</small>}
 
 export default async function CustomerDetails({params}){
   const customer=await getCustomer(params.id);
@@ -31,18 +33,18 @@ export default async function CustomerDetails({params}){
     <Block title="Автомобили клиента">
       {vehicles.length===0&&<p className="muted">Автомобилей пока нет.</p>}
       {vehicles.map(v=><Link className="leadRow" href={`/admin/vehicles/${v.id}`} key={v.id}>
-        <div><b>{vehicleTitle(v)}</b><small>{v.plate_number||v.license_plate||'номер не указан'}</small></div>
-        <div><span>{v.vin||'VIN не указан'}</span><small>{v.mileage?'пробег '+v.mileage:'пробег не указан'}</small></div>
-        <div><span>Карточка автомобиля</span><small>история заявок по авто</small></div>
+        <Stack><b>{vehicleTitle(v)}</b><Small>Госномер: {v.plate_number||v.license_plate||'не указан'}</Small></Stack>
+        <Stack><span>VIN: {v.vin||'не указан'}</span><Small>Пробег: {v.mileage||'не указан'}</Small></Stack>
+        <Stack><span>Карточка автомобиля</span><Small>История заявок и обслуживания</Small></Stack>
         <p>Открыть автомобиль и связанные заявки.</p>
       </Link>)}
     </Block>
     <Block title="Заявки клиента">
       {leads.length===0&&<p className="muted">Заявок, связанных с клиентом, пока нет.</p>}
       {leads.map(lead=><Link className="leadRow" href={`/admin/leads/${lead.id}`} key={lead.id}>
-        <div><b>{lead.public_id||'Без номера'}</b><small>{formatDate(lead.created_at)}</small></div>
-        <div><span>{leadType(lead.type)}</span><small>{lead.status||'—'}</small></div>
-        <div><span>{lead.vehicle_id?'с автомобилем':'без автомобиля'}</span><small>{lead.vin||lead.car_text||'данные авто не указаны'}</small></div>
+        <Stack><b>{lead.public_id||'Без номера'}</b><Small>{formatDate(lead.created_at)}</Small></Stack>
+        <Stack><span>{leadType(lead.type)}</span><Small>{lead.status||'—'}</Small></Stack>
+        <Stack><span>{lead.vehicle_id?'С автомобилем':'Без автомобиля'}</span><Small>{lead.vin||lead.car_text||'данные авто не указаны'}</Small></Stack>
         <p>{lead.request_text||'Без текста'}</p>
       </Link>)}
     </Block>
