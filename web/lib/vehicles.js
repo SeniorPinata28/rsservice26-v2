@@ -14,9 +14,11 @@ function vehicleCarText(data){
 }
 function vehicleNotes(data){
   const items=[];
+  const carText=vehicleCarText(data);
   const plateNumber=trimOrNull(data.plate_number||data.license_plate||data.gos_number);
   const vin=trimOrNull(data.vin);
   const mileage=trimOrNull(data.mileage);
+  if(carText)items.push(`Автомобиль: ${carText}`);
   if(plateNumber)items.push(`Госномер: ${plateNumber}`);
   if(vin)items.push(`VIN: ${vin}`);
   if(mileage)items.push(`Пробег: ${mileage}`);
@@ -40,23 +42,28 @@ export async function createVehicleForCustomerSafe(customerId,data={}){
   const plateNumber=trimOrNull(data.plate_number||data.license_plate||data.gos_number);
   const mileage=numberOrNull(data.mileage);
   const notes=vehicleNotes(data);
-  const raw_payload={...data,source:'admin_customer_vehicle'};
-  const base={customer_id:customerId,car_text:carText,brand,model,year,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes,raw_payload};
+  const raw_payload={...data,car_text:carText,notes,source:'admin_customer_vehicle'};
   const variants=[
-    base,
+    {customer_id:customerId,car_text:carText,brand,model,year,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes,raw_payload},
     {customer_id:customerId,car_text:carText,brand,model,year,vin,plate_number:plateNumber,mileage,notes},
     {customer_id:customerId,car_text:carText,brand,model,year,vin,license_plate:plateNumber,mileage,notes},
     {customer_id:customerId,car_text:carText,brand,model,year,vin,mileage,notes},
     {customer_id:customerId,car_text:carText,brand,model,vin,mileage,notes},
     {customer_id:customerId,car_text:carText,brand,model,vin,notes},
     {customer_id:customerId,car_text:carText,brand,model,notes},
-    {customer_id:customerId,car_text:carText,vin,plate_number:plateNumber,mileage,notes},
-    {customer_id:customerId,car_text:carText,vin,license_plate:plateNumber,mileage,notes},
-    {customer_id:customerId,car_text:carText,vin,mileage,notes},
-    {customer_id:customerId,car_text:carText,vin,notes},
-    {customer_id:customerId,car_text:carText,notes},
-    {customer_id:customerId,car_text:carText,vin},
-    {customer_id:customerId,car_text:carText},
+    {customer_id:customerId,brand,model,year,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes,raw_payload},
+    {customer_id:customerId,brand,model,year,vin,plate_number:plateNumber,mileage,notes},
+    {customer_id:customerId,brand,model,year,vin,license_plate:plateNumber,mileage,notes},
+    {customer_id:customerId,brand,model,year,vin,mileage,notes},
+    {customer_id:customerId,brand,model,vin,mileage,notes},
+    {customer_id:customerId,brand,model,vin,notes},
+    {customer_id:customerId,brand,model,notes},
+    {customer_id:customerId,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes},
+    {customer_id:customerId,vin,plate_number:plateNumber,mileage,notes},
+    {customer_id:customerId,vin,license_plate:plateNumber,mileage,notes},
+    {customer_id:customerId,vin,mileage,notes},
+    {customer_id:customerId,vin,notes},
+    {customer_id:customerId,notes},
     {customer_id:customerId,vin},
     {customer_id:customerId}
   ];
