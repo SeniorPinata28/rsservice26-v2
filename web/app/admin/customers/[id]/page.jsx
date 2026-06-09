@@ -12,8 +12,9 @@ function vehicleTitle(v){return v.car_text||[v.brand||v.make,v.model,v.year].fil
 function vehiclePlate(v){return v.plate_number||v.license_plate||noteValue(v.notes,'Госномер')||'не указан'}
 function leadType(type){const map={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Сервис',general_callback:'Вопрос',parts_selection_request:'Подбор',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};return map[type]||type||'Заявка'}
 function Block({title,children}){return <section className="card" style={{padding:22,marginTop:18}}><h2 style={{marginTop:0}}>{title}</h2>{children}</section>}
-function Row({label,value}){return <p style={{display:'grid',gridTemplateColumns:'130px 1fr',gap:12,margin:'10px 0'}}><b>{label}</b><span>{value||'—'}</span></p>}
+function Row({label,value}){return <p style={{display:'grid',gridTemplateColumns:'minmax(120px,140px) 1fr',gap:12,margin:'10px 0'}}><b>{label}</b><span>{value||'—'}</span></p>}
 function Small({children}){return <small style={{display:'block',color:'#64748b',lineHeight:1.3}}>{children}</small>}
+function NextAction({vehicles}){return <div className="notice">{vehicles.length===0?<><p style={{marginTop:0}}>Добавьте автомобиль клиента.</p><a className="btn primary" href="#add-vehicle">Добавить автомобиль</a></>:<><p style={{marginTop:0}}>Откройте автомобиль или вернитесь к заявке для привязки.</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="btn primary" href={`/admin/vehicles/${vehicles[0].id}`}>Открыть первый автомобиль</Link><Link className="btn" href="/admin">Назад в заявки</Link></div></>}</div>}
 
 export default async function CustomerDetails({params}){
   const customer=await getCustomer(params.id);
@@ -21,6 +22,7 @@ export default async function CustomerDetails({params}){
   const [vehicles,leads]=await Promise.all([getCustomerVehicles(customer.id),getCustomerLeads(customer.id)]);
   return <><Header/><main className="main adminPage">
     <section className="adminHero"><div><span className="badge">Клиент</span><h1>{nameOf(customer)}</h1><p className="muted">{customer.phone||'телефон не указан'} · {vehicles.length} авто · {leads.length} заявок</p></div><Link className="btn primary" href="/admin">Назад</Link></section>
+    <Block title="Следующее действие"><NextAction vehicles={vehicles}/></Block>
     <Block title="Данные клиента">
       <Row label="Имя" value={nameOf(customer)}/>
       <Row label="Телефон" value={customer.phone}/>
@@ -28,9 +30,7 @@ export default async function CustomerDetails({params}){
       <Row label="Статус" value={customer.status||'confirmed'}/>
       <Row label="Создан" value={formatDate(customer.created_at)}/>
     </Block>
-    <Block title="Действия с клиентом"><CustomerEditForm customer={customer}/></Block>
-    <Block title="Добавить автомобиль"><CustomerVehicleForm customerId={customer.id}/></Block>
-    <Block title="Автомобили">
+    <Block title="Автомобили клиента">
       {vehicles.length===0&&<p className="muted">Автомобилей пока нет.</p>}
       {vehicles.map(v=><Link className="leadRow" href={`/admin/vehicles/${v.id}`} key={v.id}>
         <div><b>{vehicleTitle(v)}</b><Small>Госномер: {vehiclePlate(v)}</Small></div>
@@ -38,7 +38,8 @@ export default async function CustomerDetails({params}){
         <p>Открыть автомобиль</p>
       </Link>)}
     </Block>
-    <Block title="Заявки">
+    <Block title="Добавить автомобиль"><div id="add-vehicle"><CustomerVehicleForm customerId={customer.id}/></div></Block>
+    <Block title="Заявки клиента">
       {leads.length===0&&<p className="muted">Заявок пока нет.</p>}
       {leads.map(lead=><Link className="leadRow" href={`/admin/leads/${lead.id}`} key={lead.id}>
         <div><b>{lead.public_id||'Без номера'}</b><Small>{formatDate(lead.created_at)}</Small></div>
@@ -46,5 +47,6 @@ export default async function CustomerDetails({params}){
         <p>{lead.request_text||'Без текста'}</p>
       </Link>)}
     </Block>
+    <Block title="Редактировать клиента"><CustomerEditForm customer={customer}/></Block>
   </main><Footer/></>
 }
