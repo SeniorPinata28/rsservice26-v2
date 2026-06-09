@@ -9,7 +9,7 @@ export async function PATCH(request,{params}){
     let result=null;
     if(action==='lead_status')result=await updateLeadStatus(id,data.status);
     else if(action==='contact_status')result=await updateLeadContactStatus(id,data.contact_status);
-    else if(action==='comment')result=await addManagerComment(id,data.comment);
+    else if(action==='comment')result=await addManagerComment(id,data.comment,Boolean(data.is_public));
     else if(action==='confirm_customer')result=await confirmLeadAsCustomer(id);
     else if(action==='edit')result=await updateLeadDetails(id,data);
     else return Response.json({ok:false,error:'Неизвестное действие'},{status:400});
