@@ -14,10 +14,10 @@ export async function db(path,opts={}){
   return {ok:res.ok,status:res.status,data,error:res.ok?null:data};
 }
 
-export function normalizePhone(phone){return String(phone||'').replace(/[^0-9+]/g,'').trim()}
+export function normalizePhone(phone){return String(phone||'').replace(/\D/g,'').trim()}
 export function normalizeLeadStatus(status){return LEAD_STATUSES.includes(status)?status:'new_contact'}
 export function normalizeContactStatus(status){return CONTACT_STATUSES.includes(status)?status:'unverified'}
-export function normalizeLeadType(type){const map={part:'parts_order',installation:'installation_booking',service:'service_booking',question:'general_callback',selection:'parts_selection_request',contact:'general_callback'};return map[type]||type||'general_callback'}
+export function normalizeLeadType(type){const map={part:'parts_order',installation:'installation_booking',service:'service_booking',question:'general_callback',selection:'parts_selection_request',contact:'general_callback',cabinet_data_correction:'cabinet_data_correction',cabinet_vehicle_request:'cabinet_vehicle_request',cabinet_request:'cabinet_request'};return map[type]||type||'general_callback'}
 export function getContactStatus(lead){return normalizeContactStatus(lead?.contact_status||lead?.raw_payload?.contact_status)}
 
 export async function createLead({type,name,phone,car,text,vin,mileage,customerId,vehicleId,source,raw}){
@@ -55,6 +55,7 @@ export async function confirmLeadAsCustomer(id){
 export async function getCustomer(id){const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
 export async function getCustomerLeads(customerId){const r=await db('leads?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getCustomerVehicles(customerId){const r=await db('vehicles?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
+export async function getCustomerServiceHistory(customerId){const r=await db('service_history?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=service_date.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function listVehicles(){const r=await db('vehicles?select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getVehicle(id){const r=await db('vehicles?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
 export async function getVehicleLeads(vehicleId){const r=await db('leads?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
@@ -70,15 +71,7 @@ export async function createVehicleForCustomer(customerId,data={}){
   if(!customer)throw new Error('Клиент не найден');
   const carText=vehicleCarText(data);
   const base={customer_id:customerId,car_text:carText,brand:trimOrNull(data.brand),model:trimOrNull(data.model),year:numberOrNull(data.year),vin:trimOrNull(data.vin),plate_number:trimOrNull(data.plate_number),mileage:numberOrNull(data.mileage)};
-  const variants=[
-    base,
-    {customer_id:customerId,car_text:carText,vin:base.vin,plate_number:base.plate_number,mileage:base.mileage},
-    {customer_id:customerId,car_text:carText,vin:base.vin,mileage:base.mileage},
-    {customer_id:customerId,car_text:carText,vin:base.vin},
-    {customer_id:customerId,car_text:carText},
-    {customer_id:customerId,vin:base.vin},
-    {customer_id:customerId}
-  ];
+  const variants=[base,{customer_id:customerId,car_text:carText,vin:base.vin,plate_number:base.plate_number,mileage:base.mileage},{customer_id:customerId,car_text:carText,vin:base.vin,mileage:base.mileage},{customer_id:customerId,car_text:carText,vin:base.vin},{customer_id:customerId,car_text:carText},{customer_id:customerId,vin:base.vin},{customer_id:customerId}];
   let lastError=null;
   for(const body of variants){const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined));const attempt=await createVehicleVariant(clean);if(attempt.ok)return {vehicle:attempt.vehicle,customer};lastError=attempt.error}
   throw new Error('Не удалось создать автомобиль: '+JSON.stringify(lastError));
