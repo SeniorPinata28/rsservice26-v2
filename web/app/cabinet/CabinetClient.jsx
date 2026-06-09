@@ -4,12 +4,13 @@ import {useEffect,useState} from 'react'
 
 const leadStatusLabels={new_contact:'Новая',in_progress:'В работе',waiting_client:'Ждём ответа клиента',completed:'Выполнена',declined:'Отказ'};
 const typeLabels={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Запись на сервис',general_callback:'Вопрос менеджеру',parts_selection_request:'Подбор',cabinet_data_correction:'Исправить данные',cabinet_vehicle_request:'Добавить автомобиль',cabinet_request:'Заявка из кабинета',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};
-const emptyRequest={type:'service_booking',vehicle_id:'',car_text:'',vin:'',comment:''};
+const emptyRequest={type:'service_booking',vehicle_id:'',car_text:'',vin:'',plate_number:'',comment:''};
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function value(v){return v===undefined||v===null||v===''?'—':String(v)}
 function vehicleName(vehicle){return vehicle?.car_text||[vehicle?.brand,vehicle?.model,vehicle?.year].filter(Boolean).join(' ')||'Автомобиль'}
 function vehicleById(vehicles,id){return vehicles.find(v=>String(v.id)===String(id))||null}
+function customerSnapshot(customer){return [`Имя: ${value(customer?.name)}`,`Телефон: ${value(customer?.phone)}`,`Email: ${value(customer?.email)}`,`Создан: ${formatDate(customer?.created_at)}`].join('\n')}
 
 export default function CabinetClient(){
   const router=useRouter();
@@ -42,18 +43,33 @@ export default function CabinetClient(){
     finally{setBusy(false)}
   }
 
-  async function submitRequest(e){
-    e.preventDefault();setRequestBusy(true);setRequestMessage('');
+  async function sendCabinetRequest(payload,successText){
+    setRequestBusy(true);setRequestMessage('');
     try{
-      const r=await fetch('/api/cabinet/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestForm)});
+      const r=await fetch('/api/cabinet/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const json=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
       if(r.status===401){router.replace('/cabinet/login');return}
       if(!json.ok){setRequestMessage(json.error||'Не удалось отправить заявку');return}
-      setRequestMessage('Заявка отправлена. Менеджер увидит её в админке.');
+      setRequestMessage(successText||'Заявка отправлена. Менеджер увидит её в админке.');
       setRequestForm(emptyRequest);
       await load();
     }catch(err){setRequestMessage('Не удалось отправить заявку')}
     finally{setRequestBusy(false)}
+  }
+
+  async function submitRequest(e){
+    e.preventDefault();
+    await sendCabinetRequest(requestForm,'Заявка отправлена. Менеджер увидит её в админке.');
+  }
+  async function reportDataError(){
+    const comment=window.prompt('Что нужно исправить в ваших данных?');
+    if(comment===null)return;
+    await sendCabinetRequest({type:'cabinet_data_correction',comment:`Клиент просит исправить данные.\nТелефон клиента: ${data.customer?.phone||'не указан'}\nТекущие данные:\n${customerSnapshot(data.customer)}\nКомментарий клиента: ${comment||'не указан'}`},'Заявка на исправление данных отправлена менеджеру.');
+  }
+  async function requestVehicleByManager(){
+    const comment=window.prompt('Напишите автомобиль, VIN, госномер и комментарий для менеджера.');
+    if(comment===null)return;
+    await sendCabinetRequest({type:'cabinet_vehicle_request',comment,car_text:comment},'Заявка на добавление автомобиля отправлена менеджеру.');
   }
 
   const {customer,vehicles,leads,service_history:history}=data;
@@ -68,10 +84,11 @@ export default function CabinetClient(){
       <section className="card">
         <div className="sectionHead"><div><h2>Мои данные</h2><p className="muted">Клиент подтверждён менеджером RSService26.</p></div><button className="btn" disabled={busy} onClick={logout}>{busy?'Выходим...':'Выйти'}</button></div>
         <div className="leadRow" style={{cursor:'default'}}><div><b>{value(customer?.name)}</b><small>Имя</small></div><div><span>{value(customer?.phone)}</span><small>Телефон</small></div><div><span>{value(customer?.email)}</span><small>Email</small></div><p>Создан: {formatDate(customer?.created_at)}</p></div>
+        <button className="btn" disabled={requestBusy} onClick={reportDataError}>{requestBusy?'Отправляем...':'Сообщить об ошибке'}</button>
       </section>
 
       <section className="card">
-        <h2>Мои автомобили</h2>
+        <div className="sectionHead"><div><h2>Мои автомобили</h2><p className="muted">Автомобиль добавляет менеджер после проверки данных.</p></div><button className="btn" disabled={requestBusy} onClick={requestVehicleByManager}>{requestBusy?'Отправляем...':'Добавить автомобиль через менеджера'}</button></div>
         {vehicles.length===0&&<p className="muted">Автомобили пока не добавлены. После первого обслуживания менеджер добавит автомобиль в базу.</p>}
         {vehicles.map(v=><article className="leadRow" key={v.id} style={{cursor:'default'}}><div><b>{vehicleName(v)}</b><small>{[v.brand,v.model,v.year].filter(Boolean).join(' ')||'Автомобиль'}</small></div><div><span>VIN: {value(v.vin)}</span><small>Госномер: {value(v.plate_number)}</small></div><p>Пробег: {value(v.mileage)}</p></article>)}
       </section>
@@ -105,6 +122,7 @@ export default function CabinetClient(){
           </select>
           <input className="input" value={requestForm.car_text} onChange={e=>setRequestForm({...requestForm,car_text:e.target.value})} placeholder="Автомобиль, если его нет в списке"/>
           <input className="input" value={requestForm.vin} onChange={e=>setRequestForm({...requestForm,vin:e.target.value})} placeholder="VIN, если нужно"/>
+          <input className="input" value={requestForm.plate_number} onChange={e=>setRequestForm({...requestForm,plate_number:e.target.value})} placeholder="Госномер, если нужно"/>
           <textarea className="input" required value={requestForm.comment} onChange={e=>setRequestForm({...requestForm,comment:e.target.value})} placeholder="Текст заявки"/>
           <button className="btn primary" disabled={requestBusy}>{requestBusy?'Отправляем...':'Отправить заявку'}</button>
         </form>
