@@ -25,11 +25,8 @@ function vehicleNotes(data,current={}){
   const existing=trimOrNull(data.notes)||trimOrNull(current.notes);
   return items.join('\n')||existing||null;
 }
-async function patchVehicleVariant(id,body){
-  const r=await db('vehicles?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body});
-  if(!r.ok)return {ok:false,error:r.error||r.data||r.status};
-  return {ok:true,vehicle:Array.isArray(r.data)?r.data[0]:r.data};
-}
+function isSchemaError(error){const message=JSON.stringify(error||'');return message.includes('PGRST204')||message.includes('schema cache')||message.includes('Could not find the')}
+function schemaMessage(error){return 'Схема таблицы vehicles не готова. Примените supabase/vehicles_admin_fields.sql в Supabase SQL Editor. Детали: '+JSON.stringify(error)}
 
 export async function updateVehicleResilient(vehicleId,data={}){
   const current=await getVehicle(vehicleId);
@@ -43,33 +40,12 @@ export async function updateVehicleResilient(vehicleId,data={}){
   const mileage=numberOrNull(data.mileage);
   const notes=vehicleNotes(data,current);
   const raw_payload={...(current.raw_payload||{}),...data,car_text:carText,edited_at:new Date().toISOString(),source:'admin_vehicle_edit'};
-  const variants=[
-    {car_text:carText,brand,model,year,vin,plate_number:plate,license_plate:plate,mileage,notes,raw_payload},
-    {car_text:carText,brand,model,year,vin,plate_number:plate,mileage,notes},
-    {car_text:carText,brand,model,year,vin,license_plate:plate,mileage,notes},
-    {car_text:carText,brand,model,year,vin,mileage,notes},
-    {car_text:carText,brand,model,vin,mileage,notes},
-    {car_text:carText,brand,model,vin,notes},
-    {brand,model,year,vin,plate_number:plate,license_plate:plate,mileage,notes,raw_payload},
-    {brand,model,year,vin,plate_number:plate,mileage,notes},
-    {brand,model,year,vin,license_plate:plate,mileage,notes},
-    {brand,model,year,vin,mileage,notes},
-    {brand,model,vin,mileage,notes},
-    {brand,model,vin,notes},
-    {vin,plate_number:plate,mileage,notes},
-    {vin,license_plate:plate,mileage,notes},
-    {vin,mileage,notes},
-    {vin,notes},
-    {notes},
-    {vin}
-  ];
-  let lastError=null;
-  for(const body of variants){
-    const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined&&v!==null&&v!==''));
-    if(Object.keys(clean).length===0)continue;
-    const attempt=await patchVehicleVariant(vehicleId,clean);
-    if(attempt.ok)return {vehicle:attempt.vehicle};
-    lastError=attempt.error;
+  const body={car_text:carText,brand,model,year,vin,plate_number:plate,mileage,notes,raw_payload};
+  const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined&&v!==null&&v!==''));
+  const r=await db('vehicles?id=eq.'+encodeURIComponent(vehicleId),{method:'PATCH',headers:{Prefer:'return=representation'},body:clean});
+  if(!r.ok){
+    if(isSchemaError(r.error||r.data))throw new Error(schemaMessage(r.error||r.data));
+    throw new Error('Не удалось обновить автомобиль: '+JSON.stringify(r.error||r.data||r.status));
   }
-  throw new Error('Не удалось обновить автомобиль: '+JSON.stringify(lastError));
+  return {vehicle:Array.isArray(r.data)?r.data[0]:r.data};
 }
