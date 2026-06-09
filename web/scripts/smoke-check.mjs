@@ -15,12 +15,15 @@ const required=[
   'app/admin/AdminFilters.jsx',
   'app/admin/leads/[id]/page.jsx',
   'app/admin/leads/[id]/LeadActions.jsx',
+  'app/admin/leads/[id]/LeadEditForm.jsx',
   'app/admin/leads/[id]/VehicleLinkForm.jsx',
   'app/admin/customers/page.jsx',
   'app/admin/customers/[id]/page.jsx',
   'app/admin/customers/[id]/CustomerVehicleForm.jsx',
+  'app/admin/customers/[id]/CustomerEditForm.jsx',
   'app/admin/vehicles/[id]/page.jsx',
   'app/admin/vehicles/[id]/ServiceHistoryForm.jsx',
+  'app/admin/vehicles/[id]/VehicleEditForm.jsx',
   'app/cabinet/page.jsx',
   'app/cabinet/CabinetClient.jsx',
   'app/availability/AvailabilityClient.jsx',
@@ -29,6 +32,7 @@ const required=[
   'app/parts/PartsClient.jsx',
   'app/cart/CartClient.jsx',
   'lib/db.js',
+  'lib/admin-edit.js',
   'lib/cabinet-auth.js',
   'lib/rate-limit.js',
   'lib/service-history.js',
@@ -52,6 +56,8 @@ function scanFiles(dir,acc=[]){
   }
   return acc;
 }
+function must(text,re,message){if(!re.test(text))errors.push(message)}
+function mustNot(text,re,message){if(re.test(text))errors.push(message)}
 
 for(const file of required){if(!exists(file))errors.push(`missing: ${file}`)}
 
@@ -86,6 +92,9 @@ if(!/linkLeadToVehicle/.test(db))errors.push('vehicle stage requires linkLeadToV
 if(!/findConfirmedCustomerByPhone/.test(db))errors.push('cabinet stage requires confirmed customer lookup by phone');
 if(!/createCabinetLoginCode/.test(db))errors.push('cabinet OTP requires createCabinetLoginCode helper');
 if(!/findActiveCabinetLoginCode/.test(db))errors.push('cabinet OTP requires active code lookup');
+if(!/confirmLeadAsCustomer/.test(db))errors.push('P2 requires confirmLeadAsCustomer helper');
+if(!/contact_status:'confirmed_client'/.test(db))errors.push('P2 confirm customer must update contact_status to confirmed_client');
+if(!/raw=\{\.\.\.\(lead\.raw_payload\|\|\{\}\),contact_status:'confirmed_client'\}/.test(db))errors.push('P2 confirm customer must mirror contact_status in raw_payload');
 
 const coreSql=read('../supabase/rsservice26_core_schema.sql');
 for(const table of ['leads','customers','vehicles','service_history','manager_comments']){
@@ -119,6 +128,13 @@ if(!/telegramError/.test(leadsApi))errors.push('/api/leads should expose telegra
 if(!/checkRateLimit/.test(leadsApi))errors.push('/api/leads must apply rate limit');
 if(!/LEADS_RATE_LIMIT_WINDOW_SECONDS/.test(leadsApi))errors.push('/api/leads must expose rate limit env tuning');
 
+const leadAdminApi=read('app/api/admin/leads/[id]/route.js');
+must(leadAdminApi,/confirm_customer/,'P2 lead API must support confirm_customer');
+must(leadAdminApi,/updateLeadDetails/,'P2 lead API must support editing lead details');
+must(leadAdminApi,/DELETE/,'P2 lead API must support deleting lead only');
+const leadVehicleApi=read('app/api/admin/leads/[id]/vehicle/route.js');
+must(leadVehicleApi,/linkLeadToVehicle/,'P2 lead vehicle API must link lead to vehicle');
+
 const requestCodeApi=read('app/api/cabinet/request-code/route.js');
 if(!/findConfirmedCustomerByPhone/.test(requestCodeApi))errors.push('cabinet code request must be limited to confirmed customers');
 if(!/createCabinetLoginCode/.test(requestCodeApi))errors.push('cabinet code request must persist OTP hash');
@@ -139,31 +155,67 @@ if(!/\/api\/cabinet\/request-code/.test(cabinetClient))errors.push('cabinet UI m
 if(!/\/api\/cabinet\/login/.test(cabinetClient))errors.push('cabinet UI must verify OTP before opening');
 
 const serviceHistoryHelper=read('lib/service-history.js');
-if(!/createServiceHistoryForVehicle/.test(serviceHistoryHelper))errors.push('service history helper must export createServiceHistoryForVehicle');
-if(!/service_history/.test(serviceHistoryHelper))errors.push('service history helper must write to service_history');
+must(serviceHistoryHelper,/createServiceHistoryForVehicle/,'service history helper must export createServiceHistoryForVehicle');
+must(serviceHistoryHelper,/service_history/,'service history helper must write to service_history');
+must(serviceHistoryHelper,/lead_id/,'P2 service history must persist linked lead_id');
+must(serviceHistoryHelper,/getLead\(leadId\)/,'P2 service history must validate linked lead');
+must(serviceHistoryHelper,/vehicle_id:vehicle\.id/,'P2 service history must persist vehicle_id');
+must(serviceHistoryHelper,/customer_id:customerId/,'P2 service history must persist customer_id');
 const serviceHistoryApi=read('app/api/admin/vehicles/[id]/service-history/route.js');
 if(!/createServiceHistoryForVehicle/.test(serviceHistoryApi))errors.push('service history API must use helper');
 const vehiclePage=read('app/admin/vehicles/[id]/page.jsx');
-if(!/ServiceHistoryForm/.test(vehiclePage))errors.push('vehicle page must include service history form');
-if(!/Добавить запись обслуживания/.test(vehiclePage))errors.push('vehicle page must expose add service history section');
+must(vehiclePage,/Следующее действие/,'P2 vehicle page must include next action block');
+must(vehiclePage,/История обслуживания[\s\S]*Добавить обслуживание/,'P2 vehicle page must render service history before add form');
+must(vehiclePage,/ServiceHistoryForm vehicleId=\{vehicle\.id\} leads=\{leads\}/,'P2 vehicle page must pass vehicle leads into service history form');
+must(vehiclePage,/VehicleEditForm/,'P2 vehicle page must include edit/delete form');
 const serviceHistoryForm=read('app/admin/vehicles/[id]/ServiceHistoryForm.jsx');
-if(!/\/api\/admin\/vehicles\/\$\{vehicleId\}\/service-history/.test(serviceHistoryForm))errors.push('service history form must post to admin API');
-if(!/router\.refresh/.test(serviceHistoryForm))errors.push('service history form must refresh vehicle page after save');
+must(serviceHistoryForm,/\/api\/admin\/vehicles\/\$\{vehicleId\}\/service-history/,'service history form must post to admin API');
+must(serviceHistoryForm,/router\.refresh/,'service history form must refresh vehicle page after save');
+must(serviceHistoryForm,/lead_id/,'P2 service history form must send lead_id');
+must(serviceHistoryForm,/Без связанной заявки/,'P2 service history form must allow empty linked lead');
+must(serviceHistoryForm,/leads\.map/,'P2 service history form must render linked lead selector');
+
+const adminFilters=read('app/admin/AdminFilters.jsx');
+must(adminFilters,/Нужно подтвердить клиента/,'P2 /admin must show next action: confirm customer');
+must(adminFilters,/Нужно привязать автомобиль/,'P2 /admin must show next action: link vehicle');
+must(adminFilters,/Можно вести обслуживание/,'P2 /admin must show next action: service');
+must(adminFilters,/Заявка выполнена/,'P2 /admin must show completed next action');
+must(adminFilters,/repeat\(auto-fit|minmax\(135px/,'P2 /admin filters must be mobile-first cards');
+const leadDetail=read('app/admin/leads/[id]/page.jsx');
+must(leadDetail,/Следующее действие/,'P2 lead detail must include next action block');
+must(leadDetail,/Контакт ещё не подтверждён как клиент/,'P2 lead detail must guide customer confirmation');
+must(leadDetail,/VehicleLinkForm/,'lead detail must include vehicle link form');
+must(leadDetail,/Редактировать заявку/,'P2 lead detail must include edit form');
+must(leadDetail,/Технические данные/,'P2 lead detail must keep technical data at bottom');
+const leadActions=read('app/admin/leads/[id]/LeadActions.jsx');
+must(leadActions,/Подтвердить как клиента/,'P2 lead actions must include confirm customer button');
+must(leadActions,/disabled=\{!!busy\}/,'P2 lead actions must disable buttons while busy');
+const leadEdit=read('app/admin/leads/[id]/LeadEditForm.jsx');
+must(leadEdit,/Удалить заявку/,'P2 lead edit must include delete lead button');
+must(leadEdit,/window\.confirm/,'P2 lead delete must require confirmation');
+const customerDetail=read('app/admin/customers/[id]/page.jsx');
+must(customerDetail,/Следующее действие/,'P2 customer detail must include next action block');
+must(customerDetail,/Добавьте автомобиль клиента/,'P2 customer detail must guide add vehicle');
+must(customerDetail,/CustomerVehicleForm/,'customer detail must include vehicle form');
+must(customerDetail,/\/admin\/vehicles\/\$\{v\.id\}/,'customer vehicles must link to vehicle detail');
+must(customerDetail,/Редактировать клиента/,'P2 customer detail must include edit form at bottom');
+const vehicleEdit=read('app/admin/vehicles/[id]/VehicleEditForm.jsx');
+must(vehicleEdit,/Удалить автомобиль/,'P2 vehicle edit must include delete vehicle button');
+must(vehicleEdit,/Связанные заявки останутся/,'P2 vehicle delete must preserve leads and only unlink');
 
 const liveSmoke=read('scripts/live-smoke.mjs');
 if(!/SMOKE_BASE_URL/.test(liveSmoke))errors.push('live smoke must require SMOKE_BASE_URL');
 if(!/purchasePrice/.test(liveSmoke))errors.push('live smoke must check purchasePrice leak');
 if(!/\/api\/admin/.test(liveSmoke))errors.push('live smoke must check admin API protection');
 if(!/\/api\/leads/.test(liveSmoke))errors.push('live smoke must check public leads endpoint');
+must(liveSmoke,/Следующее действие/,'live smoke must check P2 next action text when admin auth is available');
+must(liveSmoke,/Нужно подтвердить клиента/,'live smoke must check P2 admin next action indicators');
+must(liveSmoke,/Подтвердить как клиента/,'live smoke must check P2 confirm customer UI when admin auth is available');
+must(liveSmoke,/lead_id/,'live smoke must check P2 linked lead service-history support');
 
 const adminCustomers=read('app/admin/customers/page.jsx');
 if(!/\/admin\/customers\/\$\{c\.id\}/.test(adminCustomers))errors.push('admin customers page must link to customer detail route');
 if(/создаются автоматически по телефону при заявке/.test(adminCustomers))errors.push('old incorrect customer model text still present');
-const customerDetail=read('app/admin/customers/[id]/page.jsx');
-if(!/CustomerVehicleForm/.test(customerDetail))errors.push('customer detail must include vehicle form');
-if(!/\/admin\/vehicles\/\$\{v\.id\}/.test(customerDetail))errors.push('customer vehicles must link to vehicle detail');
-const leadDetail=read('app/admin/leads/[id]/page.jsx');
-if(!/VehicleLinkForm/.test(leadDetail))errors.push('lead detail must include vehicle link form');
 const services=exists('app/services/page.jsx')?read('app/services/page.jsx'):'';
 if(/\/contact\?type=service/.test(services))errors.push('service booking still routes to unused contact query');
 
@@ -174,7 +226,7 @@ async function httpSmoke(){
   for(const page of pages){
     const res=await fetch(new URL(page,base));
     if(page==='/admin'){
-      if(![401,503].includes(res.status))errors.push(`/admin must be protected in HTTP smoke, got ${res.status}`);
+      if(![401,403,503].includes(res.status))errors.push(`/admin must be protected in HTTP smoke, got ${res.status}`);
     }else if(res.status>=400){
       errors.push(`${page} returned HTTP ${res.status}`);
     }
