@@ -68,6 +68,16 @@ export async function updateCustomerDetails(id,data={}){
   throw new Error('Не удалось обновить клиента: '+JSON.stringify(lastError));
 }
 
+export async function deleteCustomerAdmin(id){
+  const customer=await getCustomer(id);
+  if(!customer)throw new Error('Клиент не найден');
+  await db('leads?customer_id=eq.'+encodeURIComponent(id),{method:'PATCH',body:{customer_id:null,vehicle_id:null}}).catch(()=>null);
+  await db('vehicles?customer_id=eq.'+encodeURIComponent(id),{method:'DELETE'}).catch(()=>null);
+  const deleted=await db('customers?id=eq.'+encodeURIComponent(id),{method:'DELETE'});
+  if(!deleted.ok)throw new Error('Не удалось удалить клиента: '+JSON.stringify(deleted.error||deleted.data||deleted.status));
+  return {id};
+}
+
 export async function updateVehicleDetails(id,data={}){
   const vehicle=await getVehicle(id);
   if(!vehicle)throw new Error('Автомобиль не найден');
