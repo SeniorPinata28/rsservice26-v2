@@ -4,6 +4,7 @@ import {useEffect,useState} from 'react'
 
 const leadStatusLabels={new_contact:'Новая',in_progress:'В работе',waiting_client:'Ждём ответа клиента',completed:'Выполнена',declined:'Отказ'};
 const typeLabels={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Запись на сервис',general_callback:'Вопрос менеджеру',parts_selection_request:'Подбор',cabinet_data_correction:'Исправить данные',cabinet_vehicle_request:'Добавить автомобиль',cabinet_request:'Заявка из кабинета',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};
+const emptyRequest={type:'service_booking',vehicle_id:'',car_text:'',vin:'',comment:''};
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function value(v){return v===undefined||v===null||v===''?'—':String(v)}
@@ -15,6 +16,9 @@ export default function CabinetClient(){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
+  const [requestBusy,setRequestBusy]=useState(false);
+  const [requestMessage,setRequestMessage]=useState('');
+  const [requestForm,setRequestForm]=useState(emptyRequest);
   const [data,setData]=useState({customer:null,vehicles:[],leads:[],service_history:[]});
 
   async function load(){
@@ -36,6 +40,20 @@ export default function CabinetClient(){
     try{await fetch('/api/cabinet/logout',{method:'POST'});router.replace('/cabinet/login');router.refresh()}
     catch(err){setError('Не удалось выйти из кабинета')}
     finally{setBusy(false)}
+  }
+
+  async function submitRequest(e){
+    e.preventDefault();setRequestBusy(true);setRequestMessage('');
+    try{
+      const r=await fetch('/api/cabinet/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestForm)});
+      const json=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
+      if(r.status===401){router.replace('/cabinet/login');return}
+      if(!json.ok){setRequestMessage(json.error||'Не удалось отправить заявку');return}
+      setRequestMessage('Заявка отправлена. Менеджер увидит её в админке.');
+      setRequestForm(emptyRequest);
+      await load();
+    }catch(err){setRequestMessage('Не удалось отправить заявку')}
+    finally{setRequestBusy(false)}
   }
 
   const {customer,vehicles,leads,service_history:history}=data;
@@ -68,6 +86,28 @@ export default function CabinetClient(){
         <h2>История обслуживания</h2>
         {history.length===0&&<p className="muted">История обслуживания пока не заполнена.</p>}
         {history.map(item=>{const v=vehicleById(vehicles,item.vehicle_id);return <article className="leadRow" key={item.id} style={{cursor:'default'}}><div><b>{item.title||'Работа'}</b><small>{formatDate(item.service_date)}</small></div><div><span>{v?vehicleName(v):'Автомобиль'}</span><small>Пробег: {value(item.mileage)}</small></div><p>{item.description||'Описание не заполнено'}{item.price?`\nСумма: ${item.price}`:''}</p></article>})}
+      </section>
+
+      <section className="card">
+        <h2>Оставить новую заявку</h2>
+        <form className="form" onSubmit={submitRequest}>
+          {requestMessage&&<p className="notice">{requestMessage}</p>}
+          <select className="input" value={requestForm.type} onChange={e=>setRequestForm({...requestForm,type:e.target.value})}>
+            <option value="parts_order">Запчасть</option>
+            <option value="service_booking">Запись на сервис</option>
+            <option value="general_callback">Вопрос менеджеру</option>
+            <option value="cabinet_data_correction">Исправить данные</option>
+            <option value="cabinet_vehicle_request">Добавить автомобиль</option>
+          </select>
+          <select className="input" value={requestForm.vehicle_id} onChange={e=>setRequestForm({...requestForm,vehicle_id:e.target.value})}>
+            <option value="">Без выбора автомобиля</option>
+            {vehicles.map(v=><option key={v.id} value={v.id}>{vehicleName(v)}{v.vin?' · '+v.vin:''}</option>)}
+          </select>
+          <input className="input" value={requestForm.car_text} onChange={e=>setRequestForm({...requestForm,car_text:e.target.value})} placeholder="Автомобиль, если его нет в списке"/>
+          <input className="input" value={requestForm.vin} onChange={e=>setRequestForm({...requestForm,vin:e.target.value})} placeholder="VIN, если нужно"/>
+          <textarea className="input" required value={requestForm.comment} onChange={e=>setRequestForm({...requestForm,comment:e.target.value})} placeholder="Текст заявки"/>
+          <button className="btn primary" disabled={requestBusy}>{requestBusy?'Отправляем...':'Отправить заявку'}</button>
+        </form>
       </section>
     </section>
   </>
