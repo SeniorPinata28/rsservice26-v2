@@ -36,7 +36,7 @@ export async function updateLeadStatus(id,status){return updateLead(id,{status:n
 
 export async function updateLeadContactStatus(id,contactStatus){const lead=await getLead(id);if(!lead)return null;const next=normalizeContactStatus(contactStatus);const raw={...(lead.raw_payload||{}),contact_status:next};try{return await updateLead(id,{contact_status:next,raw_payload:raw})}catch(e){return updateLead(id,{raw_payload:raw})}}
 
-export async function addManagerComment(id,comment){const text=String(comment||'').trim();if(!text)return await getLead(id);const lead=await getLead(id);if(!lead)return null;const item={text,created_at:new Date().toISOString()};const raw=lead.raw_payload||{};const comments=Array.isArray(raw.manager_comments)?raw.manager_comments:[];const updated=await updateLead(id,{raw_payload:{...raw,manager_comments:[item,...comments].slice(0,20),manager_comment_last:text}});await db('manager_comments',{method:'POST',body:[{lead_id:id,comment_text:text}]}).catch(()=>null);return updated}
+export async function addManagerComment(id,comment,isPublic=false){const text=String(comment||'').trim();if(!text)return await getLead(id);const lead=await getLead(id);if(!lead)return null;const publicFlag=Boolean(isPublic);const item={text,created_at:new Date().toISOString(),is_public:publicFlag};const raw=lead.raw_payload||{};const comments=Array.isArray(raw.manager_comments)?raw.manager_comments:[];const rawPatch={...raw,manager_comments:[item,...comments].slice(0,20),manager_comment_last:text};if(publicFlag)rawPatch.manager_comment_public=text;const updated=await updateLead(id,{raw_payload:rawPatch});const commentBody={lead_id:id,comment_text:text,is_public:publicFlag};await db('manager_comments',{method:'POST',body:[commentBody]}).catch(()=>db('manager_comments',{method:'POST',body:[{lead_id:id,comment_text:text}]}).catch(()=>null));return updated}
 
 export async function listCustomers(){const r=await db('customers?select=*&order=created_at.desc&limit=100');if(!r.ok)return [];const rows=Array.isArray(r.data)?r.data:[];return rows.filter(c=>!c.status||c.status==='confirmed'||c.status==='confirmed_client')}
 export async function findCustomerByPhone(phone){const normalized=normalizePhone(phone);if(!normalized)return null;const r=await db('customers?phone=eq.'+encodeURIComponent(normalized)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
@@ -55,11 +55,32 @@ export async function confirmLeadAsCustomer(id){
 export async function getCustomer(id){const r=await db('customers?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
 export async function getCustomerLeads(customerId){const r=await db('leads?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getCustomerVehicles(customerId){const r=await db('vehicles?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
-export async function getCustomerServiceHistory(customerId){const r=await db('service_history?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=service_date.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
+export async function getCustomerServiceHistory(customerId){
+  const vehicles=await getCustomerVehicles(customerId);
+  const byCustomer=await db('service_history?customer_id=eq.'+encodeURIComponent(customerId)+'&select=*&order=service_date.desc&limit=100');
+  const rows=[];
+  if(byCustomer.ok&&Array.isArray(byCustomer.data))rows.push(...byCustomer.data);
+  const vehicleIds=vehicles.map(v=>v.id).filter(Boolean);
+  if(vehicleIds.length){
+    const encodedIds='('+vehicleIds.map(id=>'"'+String(id).replace(/"/g,'')+'"').join(',')+')';
+    const byVehicle=await db('service_history?vehicle_id=in.'+encodeURIComponent(encodedIds)+'&select=*&order=service_date.desc&limit=100');
+    if(byVehicle.ok&&Array.isArray(byVehicle.data))rows.push(...byVehicle.data);
+  }
+  const unique=new Map();
+  for(const row of rows){if(row?.id&&!unique.has(row.id))unique.set(row.id,row)}
+  return Array.from(unique.values()).sort((a,b)=>new Date(b.service_date||b.created_at||0)-new Date(a.service_date||a.created_at||0));
+}
 export async function listVehicles(){const r=await db('vehicles?select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getVehicle(id){const r=await db('vehicles?id=eq.'+encodeURIComponent(id)+'&select=*&limit=1');return r.ok&&Array.isArray(r.data)?r.data[0]||null:null}
 export async function getVehicleLeads(vehicleId){const r=await db('leads?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=created_at.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
 export async function getVehicleServiceHistory(vehicleId){const r=await db('service_history?vehicle_id=eq.'+encodeURIComponent(vehicleId)+'&select=*&order=service_date.desc&limit=100');return r.ok&&Array.isArray(r.data)?r.data:[]}
+export async function getPublicLeadComments(leadIds=[]){
+  const ids=leadIds.filter(Boolean);
+  if(!ids.length)return [];
+  const encodedIds='('+ids.map(id=>'"'+String(id).replace(/"/g,'')+'"').join(',')+')';
+  const r=await db('manager_comments?lead_id=in.'+encodeURIComponent(encodedIds)+'&is_public=eq.true&select=*&order=created_at.desc&limit=100');
+  return r.ok&&Array.isArray(r.data)?r.data:[];
+}
 
 function trimOrNull(value){const text=String(value||'').trim();return text||null}
 function numberOrNull(value){const n=Number(value);return Number.isFinite(n)&&String(value).trim()!==''?n:null}
