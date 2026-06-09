@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
-import {CABINET_SESSION_COOKIE,verifyCabinetSessionToken} from './lib/cabinet-auth.js';
+
+const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
 function unauthorized(message='RSService26 admin access required'){
   return new NextResponse(message,{status:401,headers:{'WWW-Authenticate':'Basic realm="RSService26 Admin", charset="UTF-8"'}});
@@ -23,7 +24,7 @@ function isAllowedBySecret(request){
 }
 
 function hasAdminGuardConfigured(){return Boolean(process.env.ADMIN_BASIC_AUTH||process.env.ADMIN_SECRET)}
-function cabinetSession(request){return verifyCabinetSessionToken(request.cookies.get(CABINET_SESSION_COOKIE)?.value||'')}
+function hasCabinetSessionCookie(request){return Boolean(request.cookies.get(CABINET_SESSION_COOKIE)?.value)}
 function cabinetRedirect(request){const url=request.nextUrl.clone();url.pathname='/cabinet/login';url.searchParams.set('next',request.nextUrl.pathname);return NextResponse.redirect(url)}
 
 export function middleware(request){
@@ -45,12 +46,12 @@ export function middleware(request){
   if(isCabinetLogin)return NextResponse.next();
 
   if(isCabinetPage){
-    if(cabinetSession(request))return NextResponse.next();
+    if(hasCabinetSessionCookie(request))return NextResponse.next();
     return cabinetRedirect(request);
   }
 
   if(isPrivateCabinetApi){
-    if(cabinetSession(request))return NextResponse.next();
+    if(hasCabinetSessionCookie(request))return NextResponse.next();
     return Response.json({ok:false,error:'Требуется вход в кабинет'},{status:401});
   }
 
