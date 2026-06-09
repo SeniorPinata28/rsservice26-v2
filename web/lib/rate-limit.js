@@ -8,9 +8,10 @@ function clientIp(request){
   const first=forwarded.split(',')[0]?.trim();
   return first||request.headers.get('x-real-ip')||request.headers.get('cf-connecting-ip')||'unknown';
 }
-function cleanIdentifier(value){return String(value||'').trim().slice(0,120)||'unknown'}
+function cleanIdentifier(value){return String(value||'').trim().slice(0,180)||'unknown'}
 function seconds(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback}
 function limitNumber(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?Math.floor(n):fallback}
+function stableKey(value){return String(value||'').toLowerCase().replace(/\s+/g,' ').replace(/[^a-zа-яё0-9+:. -]/gi,'').trim().slice(0,140)}
 
 function memoryCheck(identifier,windowSeconds,limit){
   const now=nowMs();
@@ -42,26 +43,27 @@ async function persistentCheck({scope,identifier,windowSeconds,limit}){
   return {ok:true,remaining:Math.max(0,limit-existing.data.length-1),source:'db'};
 }
 
-export async function checkRateLimit({request,scope,phone,windowSeconds,limit}){
+export async function checkRateLimit({request,scope,phone,windowSeconds,limit,customKey}){
   const normalizedPhone=normalizePhone(phone);
   const ip=clientIp(request);
   const phoneKey=normalizedPhone?`phone:${normalizedPhone}`:'';
   const ipKey=`ip:${ip}`;
-  const identifier=cleanIdentifier(`${scope}:${phoneKey||ipKey}`);
+  const custom=customKey?`custom:${stableKey(customKey)}`:'';
+  const identifier=cleanIdentifier(`${scope}:${custom||phoneKey||ipKey}`);
   const ipIdentifier=cleanIdentifier(`${scope}:${ipKey}`);
   const win=seconds(windowSeconds,60);
   const lim=limitNumber(limit,3);
 
   const primaryMemory=memoryCheck(identifier,win,lim);
   if(!primaryMemory.ok)return primaryMemory;
-  if(phoneKey){
+  if(phoneKey&&!customKey){
     const ipMemory=memoryCheck(ipIdentifier,win,Math.max(lim*2,4));
     if(!ipMemory.ok)return ipMemory;
   }
 
   const primaryDb=await persistentCheck({scope,identifier,windowSeconds:win,limit:lim});
   if(!primaryDb.ok)return primaryDb;
-  if(phoneKey){
+  if(phoneKey&&!customKey){
     const ipDb=await persistentCheck({scope,identifier:ipIdentifier,windowSeconds:win,limit:Math.max(lim*2,4)});
     if(!ipDb.ok)return ipDb;
   }
