@@ -1,4 +1,4 @@
-import {updateCustomerDetails} from '../../../../../lib/admin-edit.js';
+import {deleteCustomerAdmin,updateCustomerDetails} from '../../../../../lib/admin-edit.js';
 
 export async function PATCH(request,{params}){
   try{
@@ -7,5 +7,14 @@ export async function PATCH(request,{params}){
     return Response.json({ok:true,result});
   }catch(e){
     return Response.json({ok:false,error:'Не удалось обновить клиента',details:String(e?.message||e)},{status:500});
+  }
+}
+
+export async function DELETE(request,{params}){
+  try{
+    const result=await deleteCustomerAdmin(params.id);
+    return Response.json({ok:true,result});
+  }catch(e){
+    return Response.json({ok:false,error:'Не удалось удалить клиента',details:String(e?.message||e)},{status:500});
   }
 }
