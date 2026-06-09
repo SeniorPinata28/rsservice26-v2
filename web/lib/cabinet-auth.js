@@ -35,12 +35,28 @@ export function canExposeDevCode(){
   return process.env.CABINET_DEV_SHOW_CODE==='true'&&process.env.NODE_ENV!=='production';
 }
 
+async function deliverCabinetCodeViaSmsRu(phone,code){
+  const apiKey=process.env.SMS_RU_API_KEY||process.env.SMS_API_KEY;
+  if(!apiKey)return {ok:false,error:'SMS_RU_API_KEY не настроен'};
+  const to=normalizeCabinetPhone(phone);
+  const text=`RSService26: код входа ${code}`;
+  const body=new URLSearchParams({api_id:apiKey,to,msg:text,json:'1'});
+  const response=await fetch('https://sms.ru/sms/send',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+  const data=await response.json().catch(()=>null);
+  if(!response.ok)return {ok:false,error:'SMS.ru HTTP '+response.status};
+  if(data?.status!=='OK')return {ok:false,error:data?.status_text||'SMS.ru не принял сообщение'};
+  const phoneResult=data?.sms?.[to];
+  if(phoneResult?.status&&phoneResult.status!=='OK')return {ok:false,error:phoneResult.status_text||'SMS.ru не принял номер'};
+  return {ok:true,channel:'sms_ru'};
+}
+
 export async function deliverCabinetCode(phone,code){
   const provider=process.env.CABINET_OTP_PROVIDER||'';
   if(provider==='console'&&process.env.NODE_ENV!=='production'){
     console.log(`RSService26 cabinet code for ${phone}: ${code}`);
     return {ok:true,channel:'console'};
   }
+  if(provider==='sms_ru')return deliverCabinetCodeViaSmsRu(phone,code);
   return {ok:false,error:'Канал доставки кода не настроен'};
 }
 
