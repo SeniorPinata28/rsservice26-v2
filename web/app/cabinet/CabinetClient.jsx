@@ -1,95 +1,73 @@
 'use client'
-import {useState} from 'react'
+import {useRouter} from 'next/navigation'
+import {useEffect,useState} from 'react'
 
-const leadStatusLabels={new_contact:'Новая заявка',in_progress:'В работе',waiting_client:'Ждём клиента',completed:'Выполнена',declined:'Отказ'};
-const typeLabels={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Сервис',general_callback:'Вопрос',parts_selection_request:'Подбор',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};
+const leadStatusLabels={new_contact:'Новая',in_progress:'В работе',waiting_client:'Ждём ответа клиента',completed:'Выполнена',declined:'Отказ'};
+const typeLabels={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Запись на сервис',general_callback:'Вопрос менеджеру',parts_selection_request:'Подбор',cabinet_data_correction:'Исправить данные',cabinet_vehicle_request:'Добавить автомобиль',cabinet_request:'Заявка из кабинета',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};
 
-function formatDate(value){
-  if(!value)return '—';
-  try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}
-}
+function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
+function value(v){return v===undefined||v===null||v===''?'—':String(v)}
+function vehicleName(vehicle){return vehicle?.car_text||[vehicle?.brand,vehicle?.model,vehicle?.year].filter(Boolean).join(' ')||'Автомобиль'}
+function vehicleById(vehicles,id){return vehicles.find(v=>String(v.id)===String(id))||null}
 
 export default function CabinetClient(){
-  const [phone,setPhone]=useState('');
-  const [code,setCode]=useState('');
-  const [step,setStep]=useState('phone');
-  const [loading,setLoading]=useState(false);
+  const router=useRouter();
+  const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
-  const [info,setInfo]=useState('');
-  const [devCode,setDevCode]=useState('');
-  const [customer,setCustomer]=useState(null);
-  const [leads,setLeads]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [data,setData]=useState({customer:null,vehicles:[],leads:[],service_history:[]});
 
-  async function requestCode(e){
-    e.preventDefault();
-    setError('');setInfo('');setDevCode('');setLoading(true);setCustomer(null);setLeads([]);
+  async function load(){
+    setLoading(true);setError('');
     try{
-      const r=await fetch('/api/cabinet/request-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
-      const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
-      if(!data.ok){setError(data.error||'Не удалось отправить код');if(data.devCode)setDevCode(data.devCode);return}
-      setInfo(data.message||'Код отправлен. Введите его для входа.');
-      if(data.devCode)setDevCode(data.devCode);
-      setStep('code');
-    }catch(err){setError('Не удалось отправить код')}
+      const r=await fetch('/api/cabinet/me',{cache:'no-store'});
+      const json=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
+      if(r.status===401){router.replace('/cabinet/login');return}
+      if(!json.ok){setError(json.error||'Не удалось загрузить кабинет');return}
+      setData({customer:json.customer||null,vehicles:Array.isArray(json.vehicles)?json.vehicles:[],leads:Array.isArray(json.leads)?json.leads:[],service_history:Array.isArray(json.service_history)?json.service_history:[]});
+    }catch(err){setError('Не удалось загрузить кабинет')}
     finally{setLoading(false)}
   }
 
-  async function submitCode(e){
-    e.preventDefault();
-    setError('');setInfo('');setLoading(true);setCustomer(null);setLeads([]);
-    try{
-      const r=await fetch('/api/cabinet/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,code})});
-      const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
-      if(!data.ok){setError(data.error||'Кабинет недоступен');return}
-      setCustomer(data.customer);
-      setLeads(Array.isArray(data.leads)?data.leads:[]);
-      setStep('cabinet');
-      setCode('');setDevCode('');
-    }catch(err){setError('Не удалось открыть кабинет')}
-    finally{setLoading(false)}
+  useEffect(()=>{load()},[]);
+
+  async function logout(){
+    setBusy(true);setError('');
+    try{await fetch('/api/cabinet/logout',{method:'POST'});router.replace('/cabinet/login');router.refresh()}
+    catch(err){setError('Не удалось выйти из кабинета')}
+    finally{setBusy(false)}
   }
 
-  function reset(){
-    setCustomer(null);setLeads([]);setError('');setInfo('');setCode('');setDevCode('');setStep('phone');
-  }
+  const {customer,vehicles,leads,service_history:history}=data;
+
+  if(loading)return <section className="card emptyState"><span className="badge">Личный кабинет</span><h1>Загружаем кабинет</h1><p className="muted">Проверяем сессию и получаем данные клиента.</p></section>
+  if(error)return <section className="card emptyState"><span className="badge">Личный кабинет</span><h1>Ошибка загрузки</h1><p className="notice">{error}</p><div className="cardActions"><button className="btn primary" onClick={load}>Повторить</button><button className="btn" onClick={logout}>Войти заново</button></div></section>
 
   return <>
-    <section className="hero"><span className="badge">Личный кабинет</span><h1>Кабинет клиента RSService26</h1><p>Доступ открыт только подтверждённым клиентам. Вход выполняется по телефону и одноразовому коду.</p></section>
-    <section className="section split">
-      <aside className="card">
-        <h2>Правило доступа</h2>
-        <p className="muted">Кабинет не создаёт регистрацию для всех подряд. Сначала менеджер подтверждает клиента в админке, затем клиент подтверждает владение телефоном кодом.</p>
-        <div className="steps"><p><b>1.</b> Клиент вводит телефон.</p><p><b>2.</b> Система отправляет одноразовый код.</p><p><b>3.</b> После проверки кода показываются только заявки этого customer_id.</p></div>
-      </aside>
+    <section className="hero"><span className="badge">Личный кабинет</span><h1>Кабинет клиента RSService26</h1><p>Ваши автомобили, заявки и история обслуживания. Данные доступны только по подтверждённой сессии.</p></section>
+
+    <section className="section" style={{display:'grid',gap:18}}>
       <section className="card">
-        {step==='phone'&&<form className="form" onSubmit={requestCode}>
-          <h2>Вход по телефону</h2>
-          {error&&<p className="notice">{error}</p>}
-          {info&&<p className="notice">{info}</p>}
-          {devCode&&<p className="notice">Код для локальной проверки: <b>{devCode}</b></p>}
-          <input className="input" required value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Телефон клиента"/>
-          <button className="btn primary" disabled={loading}>{loading?'Отправляем...':'Получить код'}</button>
-        </form>}
-        {step==='code'&&<form className="form" onSubmit={submitCode}>
-          <h2>Введите код</h2>
-          {error&&<p className="notice">{error}</p>}
-          {info&&<p className="notice">{info}</p>}
-          {devCode&&<p className="notice">Код для локальной проверки: <b>{devCode}</b></p>}
-          <input className="input" required value={code} onChange={e=>setCode(e.target.value)} placeholder="6-значный код" inputMode="numeric" maxLength={6}/>
-          <button className="btn primary" disabled={loading}>{loading?'Проверяем...':'Открыть кабинет'}</button>
-          <button type="button" className="btn" disabled={loading} onClick={()=>setStep('phone')}>Изменить телефон</button>
-        </form>}
-        {customer&&<div>
-          <div className="sectionHead"><div><h2>{customer.name}</h2><p className="muted">{customer.phone} · {customer.status}</p></div><button className="btn" onClick={reset}>Выйти</button></div>
-          <h3>Заявки клиента</h3>
-          {leads.length===0&&<p className="muted">У клиента пока нет связанных заявок. Менеджер должен подтвердить клиента и связать заявки через customer_id.</p>}
-          {leads.map(lead=><article className="leadRow" key={lead.id} style={{cursor:'default'}}>
-            <div><b>{lead.public_id||'Без номера'}</b><small>{formatDate(lead.created_at)}</small></div>
-            <div><span>{typeLabels[lead.type]||lead.type||'Заявка'}</span><small>{leadStatusLabels[lead.status]||lead.status||'—'}</small></div>
-            <div><span>{lead.car_text||'Авто не указано'}</span><small>{lead.vin||'VIN не указан'}</small></div>
-            <p>{lead.request_text||'Без текста'}</p>
-          </article>)}
-        </div>}
+        <div className="sectionHead"><div><h2>Мои данные</h2><p className="muted">Клиент подтверждён менеджером RSService26.</p></div><button className="btn" disabled={busy} onClick={logout}>{busy?'Выходим...':'Выйти'}</button></div>
+        <div className="leadRow" style={{cursor:'default'}}><div><b>{value(customer?.name)}</b><small>Имя</small></div><div><span>{value(customer?.phone)}</span><small>Телефон</small></div><div><span>{value(customer?.email)}</span><small>Email</small></div><p>Создан: {formatDate(customer?.created_at)}</p></div>
+      </section>
+
+      <section className="card">
+        <h2>Мои автомобили</h2>
+        {vehicles.length===0&&<p className="muted">Автомобили пока не добавлены. После первого обслуживания менеджер добавит автомобиль в базу.</p>}
+        {vehicles.map(v=><article className="leadRow" key={v.id} style={{cursor:'default'}}><div><b>{vehicleName(v)}</b><small>{[v.brand,v.model,v.year].filter(Boolean).join(' ')||'Автомобиль'}</small></div><div><span>VIN: {value(v.vin)}</span><small>Госномер: {value(v.plate_number)}</small></div><p>Пробег: {value(v.mileage)}</p></article>)}
+      </section>
+
+      <section className="card">
+        <h2>Мои заявки</h2>
+        {leads.length===0&&<p className="muted">У вас пока нет связанных заявок.</p>}
+        {leads.map(lead=>{const v=vehicleById(vehicles,lead.vehicle_id);return <article className="leadRow" key={lead.id} style={{cursor:'default'}}><div><b>{lead.public_id||'Без номера'}</b><small>{formatDate(lead.created_at)}</small></div><div><span>{typeLabels[lead.type]||lead.type||'Заявка'}</span><small>{leadStatusLabels[lead.status]||lead.status||'—'}</small></div><div><span>{v?vehicleName(v):(lead.car_text||'Авто не указано')}</span><small>{lead.vin||'VIN не указан'}</small></div><p>{lead.request_text||'Без текста'}{lead.manager_comment_last?`\nКомментарий: ${lead.manager_comment_last}`:''}</p></article>})}
+      </section>
+
+      <section className="card">
+        <h2>История обслуживания</h2>
+        {history.length===0&&<p className="muted">История обслуживания пока не заполнена.</p>}
+        {history.map(item=>{const v=vehicleById(vehicles,item.vehicle_id);return <article className="leadRow" key={item.id} style={{cursor:'default'}}><div><b>{item.title||'Работа'}</b><small>{formatDate(item.service_date)}</small></div><div><span>{v?vehicleName(v):'Автомобиль'}</span><small>Пробег: {value(item.mileage)}</small></div><p>{item.description||'Описание не заполнено'}{item.price?`\nСумма: ${item.price}`:''}</p></article>})}
       </section>
     </section>
   </>
