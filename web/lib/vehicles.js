@@ -1,5 +1,7 @@
 import {db,getCustomer} from './db.js';
 
+const REQUIRED_VEHICLE_FIELDS=['customer_id','car_text','brand','model','year','vin','plate_number','mileage','notes','raw_payload'];
+
 function trimOrNull(value){const text=String(value||'').trim();return text||null}
 function numberOrNull(value){const n=Number(value);return Number.isFinite(n)&&String(value).trim()!==''?n:null}
 function vehicleCarText(data){
@@ -24,55 +26,46 @@ function vehicleNotes(data){
   if(mileage)items.push(`Пробег: ${mileage}`);
   return items.join('\n')||null;
 }
-
-async function createVehicleVariant(body){
-  const created=await db('vehicles',{method:'POST',headers:{Prefer:'return=representation'},body:[body]});
-  if(!created.ok)return {ok:false,error:created.error||created.data||created.status};
-  return {ok:true,vehicle:Array.isArray(created.data)?created.data[0]:created.data};
+function isSchemaError(error){
+  const message=JSON.stringify(error||'');
+  return message.includes('PGRST204')||message.includes('schema cache')||message.includes('Could not find the');
+}
+function schemaMessage(error){
+  return 'Схема таблицы vehicles не готова. Примените supabase/vehicles_admin_fields.sql в Supabase SQL Editor. Детали: '+JSON.stringify(error);
 }
 
 export async function createVehicleForCustomerSafe(customerId,data={}){
   const customer=await getCustomer(customerId);
   if(!customer)throw new Error('Клиент не найден');
-  const carText=vehicleCarText(data);
   const brand=trimOrNull(data.brand||data.make);
   const model=trimOrNull(data.model);
   const year=numberOrNull(data.year);
   const vin=trimOrNull(data.vin);
   const plateNumber=trimOrNull(data.plate_number||data.license_plate||data.gos_number);
   const mileage=numberOrNull(data.mileage);
+  const carText=vehicleCarText(data);
   const notes=vehicleNotes(data);
-  const raw_payload={...data,car_text:carText,notes,source:'admin_customer_vehicle'};
-  const variants=[
-    {customer_id:customerId,car_text:carText,brand,model,year,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes,raw_payload},
-    {customer_id:customerId,car_text:carText,brand,model,year,vin,plate_number:plateNumber,mileage,notes},
-    {customer_id:customerId,car_text:carText,brand,model,year,vin,license_plate:plateNumber,mileage,notes},
-    {customer_id:customerId,car_text:carText,brand,model,year,vin,mileage,notes},
-    {customer_id:customerId,car_text:carText,brand,model,vin,mileage,notes},
-    {customer_id:customerId,car_text:carText,brand,model,vin,notes},
-    {customer_id:customerId,car_text:carText,brand,model,notes},
-    {customer_id:customerId,brand,model,year,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes,raw_payload},
-    {customer_id:customerId,brand,model,year,vin,plate_number:plateNumber,mileage,notes},
-    {customer_id:customerId,brand,model,year,vin,license_plate:plateNumber,mileage,notes},
-    {customer_id:customerId,brand,model,year,vin,mileage,notes},
-    {customer_id:customerId,brand,model,vin,mileage,notes},
-    {customer_id:customerId,brand,model,vin,notes},
-    {customer_id:customerId,brand,model,notes},
-    {customer_id:customerId,vin,plate_number:plateNumber,license_plate:plateNumber,mileage,notes},
-    {customer_id:customerId,vin,plate_number:plateNumber,mileage,notes},
-    {customer_id:customerId,vin,license_plate:plateNumber,mileage,notes},
-    {customer_id:customerId,vin,mileage,notes},
-    {customer_id:customerId,vin,notes},
-    {customer_id:customerId,notes},
-    {customer_id:customerId,vin},
-    {customer_id:customerId}
-  ];
-  let lastError=null;
-  for(const body of variants){
-    const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined&&v!==null&&v!==''));
-    const attempt=await createVehicleVariant(clean);
-    if(attempt.ok)return {vehicle:attempt.vehicle,customer};
-    lastError=attempt.error;
+  if(!carText&&!vin)throw new Error('Укажите автомобиль или VIN');
+  const body={
+    customer_id:customerId,
+    car_text:carText,
+    brand,
+    model,
+    year,
+    vin,
+    plate_number:plateNumber,
+    mileage,
+    notes,
+    raw_payload:{...data,car_text:carText,notes,source:'admin_customer_vehicle'}
+  };
+  const clean=Object.fromEntries(Object.entries(body).filter(([,v])=>v!==undefined&&v!==null&&v!==''));
+  const created=await db('vehicles',{method:'POST',headers:{Prefer:'return=representation'},body:[clean]});
+  if(!created.ok){
+    if(isSchemaError(created.error||created.data))throw new Error(schemaMessage(created.error||created.data));
+    throw new Error('Не удалось создать автомобиль: '+JSON.stringify(created.error||created.data||created.status));
   }
-  throw new Error('Не удалось создать автомобиль: '+JSON.stringify(lastError));
+  const vehicle=Array.isArray(created.data)?created.data[0]:created.data;
+  const missingSaved=REQUIRED_VEHICLE_FIELDS.filter(field=>clean[field]!==undefined&&vehicle&&vehicle[field]===undefined);
+  if(missingSaved.length)throw new Error('Автомобиль сохранён неполно. Не найдены поля в ответе Supabase: '+missingSaved.join(', '));
+  return {vehicle,customer};
 }
