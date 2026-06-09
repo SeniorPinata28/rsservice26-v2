@@ -5,6 +5,7 @@ export async function GET(){return Response.json({ok:false,error:'Method not all
 
 function value(data,...keys){for(const key of keys){const v=data?.[key];if(v!==undefined&&v!==null&&String(v).trim()!=='')return String(v).trim()}return ''}
 function money(v){return v!==undefined&&v!==null&&String(v).trim()?String(v).trim():''}
+function duplicateKey({phone,type,text,vin}){return [phone,type,vin||'',String(text||'').slice(0,220)].join('|')}
 
 export async function POST(request){
   try{
@@ -18,6 +19,16 @@ export async function POST(request){
     const source=value(data,'source')||'site';
     const text=value(data,'request_text','text','message','comment','request')||'Заявка без текста';
     if(!name||!phone||!text){return Response.json({ok:false,error:'Заполните имя, телефон и текст заявки'},{status:400})}
+
+    const duplicateLimit=await checkRateLimit({
+      request,
+      scope:'lead_duplicate',
+      phone,
+      customKey:duplicateKey({phone,type,text,vin}),
+      windowSeconds:Number(process.env.LEAD_DUPLICATE_WINDOW_SECONDS||300),
+      limit:1
+    });
+    if(!duplicateLimit.ok)return rateLimitResponse(duplicateLimit,'Такая заявка уже отправлена. Менеджер свяжется с вами. Повторно отправлять не нужно.');
 
     const limit=await checkRateLimit({
       request,
