@@ -82,14 +82,14 @@ if(exists('middleware.js')){
   must(middleware,/pathname==='\/cabinet\/login'/,'/cabinet/login must remain public');
   must(middleware,/pathname\.startsWith\('\/api\/cabinet\/request-code'\)/,'cabinet request-code API must remain public');
   must(middleware,/pathname\.startsWith\('\/api\/cabinet\/login'\)/,'cabinet login API must remain public');
-  must(middleware,/cabinetSession\(request\)/,'middleware must verify cabinet session cookie');
+  must(middleware,/hasValidCabinetSession\(request\)|verifyCabinetSessionTokenEdge/,'middleware must verify cabinet session cookie');
   must(middleware,/status:401/,'private cabinet API should return 401 without session');
 }
 
 if(exists('components/Header.jsx')){
   const header=read('components/Header.jsx');
   must(header,/NEXT_PUBLIC_CABINET_ENABLED/,'cabinet link must be feature-flagged');
-  mustNot(header,/<Link href="\/cabinet">Кабинет<\/Link>/,'cabinet link must not be unconditional in Header');
+  must(header,/cabinetEnabled&&<Link href="\/cabinet">Кабинет<\/Link>/,'cabinet link must render only when cabinetEnabled is true');
 }
 
 if(exists('lib/cabinet-auth.js')){
@@ -199,6 +199,8 @@ if(exists('app/cabinet/CabinetClient.jsx')){
   must(cabinetClient,/Мои заявки/,'protected cabinet must show leads block');
   must(cabinetClient,/История обслуживания/,'protected cabinet must show service history block');
   must(cabinetClient,/Оставить новую заявку/,'protected cabinet must show new request form');
+  must(cabinetClient,/Сообщить об ошибке/,'protected cabinet must allow data correction request');
+  must(cabinetClient,/Добавить автомобиль через менеджера/,'protected cabinet must allow vehicle request through manager');
   mustNot(cabinetClient,/\/api\/cabinet\/request-code/,'protected cabinet must not request OTP');
   mustNot(cabinetClient,/\/api\/cabinet\/login/,'protected cabinet must not perform login');
   mustNot(cabinetClient,/setCustomer\(/,'protected cabinet must not keep login customer in client state');
