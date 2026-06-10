@@ -61,15 +61,15 @@ export default function CabinetClient(){
     e.preventDefault();
     await sendCabinetRequest(requestForm,'Заявка отправлена. Менеджер увидит её в админке.');
   }
-  async function reportDataError(){
-    const comment=window.prompt('Что нужно исправить в ваших данных?');
-    if(comment===null)return;
-    await sendCabinetRequest({type:'cabinet_data_correction',comment:`Клиент просит исправить данные.\nТелефон клиента: ${data.customer?.phone||'не указан'}\nТекущие данные:\n${customerSnapshot(data.customer)}\nКомментарий клиента: ${comment||'не указан'}`},'Заявка на исправление данных отправлена менеджеру.');
+
+  function presetDataCorrection(){
+    setRequestMessage('Заполните комментарий и отправьте заявку на исправление данных.');
+    setRequestForm({type:'cabinet_data_correction',vehicle_id:'',car_text:'',vin:'',plate_number:'',comment:`Клиент просит исправить данные.\nТелефон клиента: ${data.customer?.phone||'не указан'}\nТекущие данные:\n${customerSnapshot(data.customer)}\nКомментарий клиента: `});
   }
-  async function requestVehicleByManager(){
-    const comment=window.prompt('Напишите автомобиль, VIN, госномер и комментарий для менеджера.');
-    if(comment===null)return;
-    await sendCabinetRequest({type:'cabinet_vehicle_request',comment,car_text:comment},'Заявка на добавление автомобиля отправлена менеджеру.');
+
+  function presetVehicleRequest(){
+    setRequestMessage('Заполните автомобиль, VIN, госномер и отправьте заявку менеджеру.');
+    setRequestForm({type:'cabinet_vehicle_request',vehicle_id:'',car_text:'',vin:'',plate_number:'',comment:'Прошу добавить автомобиль через менеджера. '});
   }
 
   const {customer,vehicles,leads,service_history:history}=data;
@@ -84,11 +84,11 @@ export default function CabinetClient(){
       <section className="card">
         <div className="sectionHead"><div><h2>Мои данные</h2><p className="muted">Клиент подтверждён менеджером RSService26.</p></div><button className="btn" disabled={busy} onClick={logout}>{busy?'Выходим...':'Выйти'}</button></div>
         <div className="leadRow" style={{cursor:'default'}}><div><b>{value(customer?.name)}</b><small>Имя</small></div><div><span>{value(customer?.phone)}</span><small>Телефон</small></div><div><span>{value(customer?.email)}</span><small>Email</small></div><p>Создан: {formatDate(customer?.created_at)}</p></div>
-        <button className="btn" disabled={requestBusy} onClick={reportDataError}>{requestBusy?'Отправляем...':'Сообщить об ошибке'}</button>
+        <button className="btn" disabled={requestBusy} onClick={presetDataCorrection}>{requestBusy?'Отправляем...':'Сообщить об ошибке'}</button>
       </section>
 
       <section className="card">
-        <div className="sectionHead"><div><h2>Мои автомобили</h2><p className="muted">Автомобиль добавляет менеджер после проверки данных.</p></div><button className="btn" disabled={requestBusy} onClick={requestVehicleByManager}>{requestBusy?'Отправляем...':'Добавить автомобиль через менеджера'}</button></div>
+        <div className="sectionHead"><div><h2>Мои автомобили</h2><p className="muted">Автомобиль добавляет менеджер после проверки данных.</p></div><button className="btn" disabled={requestBusy} onClick={presetVehicleRequest}>{requestBusy?'Отправляем...':'Добавить автомобиль через менеджера'}</button></div>
         {vehicles.length===0&&<p className="muted">Автомобили пока не добавлены. После первого обслуживания менеджер добавит автомобиль в базу.</p>}
         {vehicles.map(v=><article className="leadRow" key={v.id} style={{cursor:'default'}}><div><b>{vehicleName(v)}</b><small>{[v.brand,v.model,v.year].filter(Boolean).join(' ')||'Автомобиль'}</small></div><div><span>VIN: {value(v.vin)}</span><small>Госномер: {value(v.plate_number)}</small></div><p>Пробег: {value(v.mileage)}</p></article>)}
       </section>
