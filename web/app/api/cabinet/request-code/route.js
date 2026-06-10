@@ -1,12 +1,12 @@
-import {createCabinetLoginCode,dbReady,findConfirmedCustomerByPhone,normalizePhone} from '../../../../lib/db.js';
-import {canExposeDevCode,deliverCabinetCode,generateOtp,hashOtp,otpExpiresAt} from '../../../../lib/cabinet-auth.js';
+import {createCabinetLoginCode,dbReady,findConfirmedCustomerByPhone} from '../../../../lib/db.js';
+import {canExposeDevCode,deliverCabinetCode,generateOtp,hashOtp,normalizeCabinetPhone,otpExpiresAt} from '../../../../lib/cabinet-auth.js';
 import {checkRateLimit,rateLimitResponse} from '../../../../lib/rate-limit.js';
 
 export async function POST(request){
   try{
     if(!dbReady())return Response.json({ok:false,error:'Supabase не настроен'},{status:500});
     const data=await request.json().catch(()=>({}));
-    const phone=normalizePhone(data.phone);
+    const phone=normalizeCabinetPhone(data.phone);
     if(!phone)return Response.json({ok:false,error:'Введите телефон'},{status:400});
 
     const limit=await checkRateLimit({
@@ -20,14 +20,14 @@ export async function POST(request){
 
     const customer=await findConfirmedCustomerByPhone(phone);
     if(!customer){
-      return Response.json({ok:false,error:'Код можно отправить только подтверждённому клиенту RSService26.'},{status:403});
+      return Response.json({ok:false,error:'Кабинет доступен только подтверждённым клиентам RSService26. Оставьте заявку, и менеджер свяжется с вами.'},{status:403});
     }
 
     const code=generateOtp();
     await createCabinetLoginCode(phone,hashOtp(phone,code),otpExpiresAt());
     const delivered=await deliverCabinetCode(phone,code);
     if(!delivered.ok){
-      const body={ok:false,error:delivered.error||'Код создан, но канал доставки не настроен'};
+      const body={ok:false,error:delivered.error||'Канал доставки кода не настроен'};
       if(canExposeDevCode())body.devCode=code;
       return Response.json(body,{status:500});
     }
