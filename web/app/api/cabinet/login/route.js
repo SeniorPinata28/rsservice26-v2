@@ -2,6 +2,7 @@ import {dbReady,findConfirmedCustomerByPhone,normalizePhone} from '../../../../l
 import {setCabinetSessionCookie,verifyCabinetPassword} from '../../../../lib/cabinet-auth.js';
 import {checkRateLimit,rateLimitResponse} from '../../../../lib/rate-limit.js';
 import {normalizeRussianPhone,publicError,requestTooLarge} from '../../../../lib/validation.js';
+import {NextResponse} from 'next/server';
 
 export async function POST(request){
   try{
@@ -20,15 +21,24 @@ export async function POST(request){
       scope:'cabinet_password_login_v2',
       phone,
       windowSeconds:Number(process.env.CABINET_LOGIN_RATE_LIMIT_WINDOW_SECONDS||300),
-      limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||10)
+      limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||10),
+      consume:false
     });
     if(!limit.ok)return rateLimitResponse(limit,'Вход временно заблокирован из-за частых попыток.');
 
     const customer=await findConfirmedCustomerByPhone(phone);
     if(!customer||customer.cabinet_enabled!==true||!verifyCabinetPassword(password,customer.password_hash)){
+      await checkRateLimit({
+        request,
+        scope:'cabinet_password_login_v2',
+        phone,
+        windowSeconds:Number(process.env.CABINET_LOGIN_RATE_LIMIT_WINDOW_SECONDS||300),
+        limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||10),
+        consume:true
+      });
       return Response.json({ok:false,error:'Телефон или пароль не подходят. Проверьте данные, выданные менеджером.'},{status:401});
     }
-    const response=Response.json({ok:true,must_change_password:Boolean(customer.must_change_password)});
+    const response=NextResponse.json({ok:true,must_change_password:Boolean(customer.must_change_password)});
     return setCabinetSessionCookie(response,customer.id);
   }catch(e){
     return publicError(e);

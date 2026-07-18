@@ -1,5 +1,5 @@
 import {db,getCustomer,getLead,getVehicle,normalizePhone,updateLead} from './db.js';
-import {hashCabinetPassword,validateCabinetPassword} from './cabinet-auth.js';
+import {hashCabinetPassword,validateCabinetPassword,verifyCabinetPassword} from './cabinet-auth.js';
 
 function trimOrNull(value){const text=String(value||'').trim();return text||null}
 function numberOrNull(value){const n=Number(String(value||'').replace(',','.'));return Number.isFinite(n)&&String(value||'').trim()!==''?n:null}
@@ -81,7 +81,11 @@ export async function updateCustomerCabinetAccess(id,data={}){
   if(password)patch.password_hash=hashCabinetPassword(password);
   const r=await db('customers?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:patch});
   if(!r.ok)throw new Error('Не удалось обновить доступ: '+JSON.stringify(r.error||r.data||r.status));
-  return Array.isArray(r.data)?r.data[0]:r.data;
+  const updated=Array.isArray(r.data)?r.data[0]:r.data;
+  if(!updated?.id)throw new Error('Supabase не подтвердил обновление клиента');
+  if(Boolean(updated.cabinet_enabled)!==enabled)throw new Error('Supabase не сохранил состояние доступа');
+  if(password&&!verifyCabinetPassword(password,updated.password_hash))throw new Error('Supabase не сохранил новый пароль корректно');
+  return updated;
 }
 
 export async function deleteCustomerAdmin(id){

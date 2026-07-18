@@ -6,7 +6,7 @@ export async function POST(request,{params}){
     const data=await request.json().catch(()=>({}));
     if(data.action!=='cabinet_access')return Response.json({ok:false,error:'Неизвестное действие'},{status:400});
     const result=await updateCustomerCabinetAccess(id,data);
-    return Response.json({ok:true,result});
+    return Response.json({ok:true,result:{id:result.id,cabinet_enabled:result.cabinet_enabled===true,has_password:Boolean(result.password_hash),password_verified:Boolean(data.password)}});
   }catch(e){
     return Response.json({ok:false,error:String(e?.message||e)},{status:400});
   }

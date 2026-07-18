@@ -151,6 +151,9 @@ if(exists('app/api/cabinet/login/route.js')){
   must(login,/cabinet_password_login_v2/,'cabinet login must use the current password rate-limit scope');
   mustNot(login,/CABINET_OTP_RATE_LIMIT/,'password login must not inherit legacy OTP limits');
   must(login,/setCabinetSessionCookie/,'cabinet login must set HTTP-only session cookie');
+  must(login,/NextResponse\.json/,'cabinet login must use NextResponse before setting cookies');
+  mustNot(login,/const response=Response\.json/,'native Response cannot set Next.js cookies');
+  must(login,/consume:false/,'successful cabinet login must not consume a failed-attempt quota');
   mustNot(login,/getCustomerLeads/,'cabinet login must not return customer data directly');
   mustNot(login,/leads\.map/,'cabinet login must not return leads directly');
 }
@@ -169,6 +172,7 @@ if(exists('app/api/cabinet/me/route.js')){
 if(exists('app/api/cabinet/logout/route.js')){
   const logout=read('app/api/cabinet/logout/route.js');
   must(logout,/clearCabinetSessionCookie/,'cabinet logout must clear session cookie');
+  must(logout,/NextResponse\.json/,'cabinet logout must use NextResponse before clearing cookies');
   must(logout,/ok:true/,'cabinet logout must return ok:true');
 }
 

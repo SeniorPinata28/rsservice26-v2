@@ -15,7 +15,7 @@ export default function CustomerCabinetAccessForm({customer}){
       const r=await fetch(`/api/admin/customers/${customer.id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'cabinet_access',enabled,password,must_change_password:mustChange})});
       const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
       if(!data.ok){setMessage(data.error||'Не удалось обновить доступ');return}
-      setPassword('');setMessage(enabled?'Доступ в кабинет включён':'Доступ в кабинет отключён');router.refresh();
+      setPassword('');setMessage(enabled?(data.result?.password_verified?'Доступ включён — новый пароль сохранён и проверен':'Доступ в кабинет включён'):'Доступ в кабинет отключён');router.refresh();
     }catch(e){setMessage('Не удалось обновить доступ')}finally{setBusy(false)}
   }
   return <form className="form" onSubmit={save}>

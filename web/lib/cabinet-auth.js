@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import {cookies} from 'next/headers';
 
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
@@ -94,8 +93,4 @@ export function clearCabinetSessionCookie(response){
 
 export function getCabinetSessionFromRequest(request){
   return verifyCabinetSessionToken(request.cookies.get(CABINET_SESSION_COOKIE)?.value||'');
-}
-
-export function getCabinetSessionFromServerCookies(){
-  return verifyCabinetSessionToken(cookies().get(CABINET_SESSION_COOKIE)?.value||'');
 }
