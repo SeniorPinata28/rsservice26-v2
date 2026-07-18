@@ -32,7 +32,13 @@ export default function CabinetLoginClient(){
     try{
       const r=await fetch('/api/cabinet/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:cleanPhone(phone),password})})
       const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}))
-      if(!data.ok){setMessage(data.error||'Не удалось войти');return}
+      if(!data.ok){
+        if(r.status===429){
+          const minutes=Math.max(1,Math.ceil(Number(data.retryAfter||60)/60))
+          setMessage(`Слишком много попыток. Подождите ${minutes} мин. и попробуйте снова.`)
+        }else setMessage(data.error||'Не удалось войти')
+        return
+      }
       router.replace('/cabinet');router.refresh()
     }catch(err){setMessage('Не удалось войти')}
     finally{setBusy(false)}
@@ -40,6 +46,6 @@ export default function CabinetLoginClient(){
 
   return <section className="section split cabinetLogin">
     <aside className="card"><span className="badge">Личный кабинет</span><h1>Вход клиента</h1><p className="muted">Доступ создаёт менеджер RSService26. Используйте номер телефона и выданный пароль.</p></aside>
-    <section className="card"><form className="form" onSubmit={login}><h2>Войти в кабинет</h2>{message&&<p className="notice">{message}</p>}<input className="input" required value={phone} onChange={e=>setPhone(formatPhone(e.target.value))} placeholder="+7 (999) 999-99-99" inputMode="tel" autoComplete="tel"/><input className="input" required type="password" minLength={8} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Пароль" autoComplete="current-password"/><button className="btn primary" disabled={busy}>{busy?'Проверяем...':'Войти'}</button><p className="muted">Забыли пароль? Обратитесь к менеджеру — он задаст новый временный пароль.</p></form></section>
+    <section className="card"><form className="form" onSubmit={login}><h2>Войти в кабинет</h2>{message&&<p className="notice" role="alert" aria-live="polite">{message}</p>}<input className="input" required value={phone} onChange={e=>setPhone(formatPhone(e.target.value))} placeholder="+7 (999) 999-99-99" inputMode="tel" autoComplete="tel"/><input className="input" required type="password" minLength={8} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Пароль" autoComplete="current-password"/><button className="btn primary" disabled={busy}>{busy?'Проверяем...':'Войти'}</button><p className="muted">Забыли пароль? Обратитесь к менеджеру — он задаст новый временный пароль.</p></form></section>
   </section>
 }

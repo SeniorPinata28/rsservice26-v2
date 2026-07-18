@@ -15,16 +15,18 @@ export async function POST(request){
 
     const limit=await checkRateLimit({
       request,
-      scope:'cabinet_password_login',
+      // Version the scope so accounts locked by the former OTP-based limits
+      // are released after moving to phone + password authentication.
+      scope:'cabinet_password_login_v2',
       phone,
-      windowSeconds:Number(process.env.CABINET_LOGIN_RATE_LIMIT_WINDOW_SECONDS||process.env.CABINET_OTP_RATE_LIMIT_WINDOW_SECONDS||300),
-      limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||process.env.CABINET_OTP_RATE_LIMIT_MAX||10)
+      windowSeconds:Number(process.env.CABINET_LOGIN_RATE_LIMIT_WINDOW_SECONDS||300),
+      limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||10)
     });
-    if(!limit.ok)return rateLimitResponse(limit,'Слишком много попыток входа. Попробуйте через несколько минут.');
+    if(!limit.ok)return rateLimitResponse(limit,'Вход временно заблокирован из-за частых попыток.');
 
     const customer=await findConfirmedCustomerByPhone(phone);
     if(!customer||customer.cabinet_enabled!==true||!verifyCabinetPassword(password,customer.password_hash)){
-      return Response.json({ok:false,error:'Неверный телефон или пароль'},{status:401});
+      return Response.json({ok:false,error:'Телефон или пароль не подходят. Проверьте данные, выданные менеджером.'},{status:401});
     }
     const response=Response.json({ok:true,must_change_password:Boolean(customer.must_change_password)});
     return setCabinetSessionCookie(response,customer.id);

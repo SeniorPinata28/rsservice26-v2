@@ -148,6 +148,8 @@ if(exists('app/api/cabinet/login/route.js')){
   must(login,/verifyCabinetPassword/,'cabinet login must verify password hash');
   must(login,/cabinet_enabled/,'cabinet login must require manager-enabled access');
   must(login,/checkRateLimit/,'cabinet login must apply rate limit');
+  must(login,/cabinet_password_login_v2/,'cabinet login must use the current password rate-limit scope');
+  mustNot(login,/CABINET_OTP_RATE_LIMIT/,'password login must not inherit legacy OTP limits');
   must(login,/setCabinetSessionCookie/,'cabinet login must set HTTP-only session cookie');
   mustNot(login,/getCustomerLeads/,'cabinet login must not return customer data directly');
   mustNot(login,/leads\.map/,'cabinet login must not return leads directly');
