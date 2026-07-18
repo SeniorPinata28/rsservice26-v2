@@ -1,6 +1,11 @@
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
-const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.CABINET_OTP_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
+function sessionSecret(){
+  const secret=String(process.env.CABINET_SESSION_SECRET||process.env.CABINET_OTP_SECRET||'');
+  if(secret)return secret;
+  if(process.env.NODE_ENV!=='production')return 'rsservice26-local-development-only';
+  return '';
+}
 
 function base64urlBytes(buffer){
   const bytes=new Uint8Array(buffer);
@@ -14,16 +19,18 @@ function fromBase64url(input){
 }
 async function signEdge(value){
   const encoder=new TextEncoder();
-  const key=await crypto.subtle.importKey('raw',encoder.encode(SESSION_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const secret=sessionSecret();if(!secret)return '';
+  const key=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const signature=await crypto.subtle.sign('HMAC',key,encoder.encode(value));
   return base64urlBytes(signature);
 }
+function safeEqual(left,right){const a=String(left||'');const b=String(right||'');if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0}
 
 export async function verifyCabinetSessionTokenEdge(token){
   const [encoded,signature]=String(token||'').split('.');
   if(!encoded||!signature)return null;
   const expected=await signEdge(encoded);
-  if(expected!==signature)return null;
+  if(!expected||!safeEqual(expected,signature))return null;
   try{
     const payload=JSON.parse(fromBase64url(encoded));
     if(!payload?.customer_id)return null;

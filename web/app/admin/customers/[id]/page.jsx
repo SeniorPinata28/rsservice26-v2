@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {getCustomer,getCustomerLeads,getCustomerVehicles} from '../../../../lib/db.js';
 import CustomerEditForm from './CustomerEditForm';
 import CustomerVehicleForm from './CustomerVehicleForm';
+import CustomerCabinetAccessForm from './CustomerCabinetAccessForm';
 
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function nameOf(c){return c?.full_name||c?.name||'Без имени'}
@@ -14,10 +15,12 @@ function leadType(type){const map={parts_order:'Запчасть',installation_b
 function Block({title,children}){return <section className="card" style={{padding:22,marginTop:18}}><h2 style={{marginTop:0}}>{title}</h2>{children}</section>}
 function Row({label,value}){return <p style={{display:'grid',gridTemplateColumns:'minmax(120px,140px) 1fr',gap:12,margin:'10px 0'}}><b>{label}</b><span>{value||'—'}</span></p>}
 function Small({children}){return <small style={{display:'block',color:'#64748b',lineHeight:1.3}}>{children}</small>}
+function editableCustomer(c){return {id:c.id,full_name:c.full_name||'',name:c.name||'',phone:c.phone||'',email:c.email||'',status:c.status||'confirmed',internal_notes:c.internal_notes||'',client_notes:c.client_notes||''}}
 function NextAction({vehicles}){return <div className="notice">{vehicles.length===0?<><p style={{marginTop:0}}>Добавьте автомобиль клиента.</p><a className="btn primary" href="#add-vehicle">Добавить автомобиль</a></>:<><p style={{marginTop:0}}>Откройте автомобиль или вернитесь к заявке для привязки.</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="btn primary" href={`/admin/vehicles/${vehicles[0].id}`}>Открыть первый автомобиль</Link><Link className="btn" href="/admin">Назад в заявки</Link></div></>}</div>}
 
 export default async function CustomerDetails({params}){
-  const customer=await getCustomer(params.id);
+  const {id}=await params;
+  const customer=await getCustomer(id);
   if(!customer)return <><Header/><main className="main"><section className="card"><h1>Клиент не найден</h1><Link className="btn primary" href="/admin">Назад</Link></section></main><Footer/></>;
   const [vehicles,leads]=await Promise.all([getCustomerVehicles(customer.id),getCustomerLeads(customer.id)]);
   return <><Header/><main className="main adminPage">
@@ -29,6 +32,10 @@ export default async function CustomerDetails({params}){
       <Row label="Email" value={customer.email}/>
       <Row label="Статус" value={customer.status||'confirmed'}/>
       <Row label="Создан" value={formatDate(customer.created_at)}/>
+    </Block>
+    <Block title="Доступ в личный кабинет">
+      <p className="muted">Статус: {customer.cabinet_enabled===true?'доступ разрешён':'доступ отключён'} · Пароль: {customer.password_hash?'установлен':'не установлен'}</p>
+      <CustomerCabinetAccessForm customer={{id:customer.id,cabinet_enabled:customer.cabinet_enabled===true,has_password:Boolean(customer.password_hash)}}/>
     </Block>
     <Block title="Автомобили клиента">
       {vehicles.length===0&&<p className="muted">Автомобилей пока нет.</p>}
@@ -47,6 +54,6 @@ export default async function CustomerDetails({params}){
         <p>{lead.request_text||'Без текста'}</p>
       </Link>)}
     </Block>
-    <Block title="Редактировать клиента"><CustomerEditForm customer={customer}/></Block>
+    <Block title="Редактировать клиента"><CustomerEditForm customer={editableCustomer(customer)}/></Block>
   </main><Footer/></>
 }

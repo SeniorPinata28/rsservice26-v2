@@ -16,7 +16,8 @@ function isActive(lead){return ['new_contact','in_progress','waiting_client'].in
 function NextAction({history,leads,customer}){const active=leads.find(isActive);if(history.length===0)return <div className="notice"><p style={{marginTop:0}}>Добавьте первую запись обслуживания.</p><a className="btn primary" href="#service-history-form">Добавить обслуживание</a></div>;if(active)return <div className="notice"><p style={{marginTop:0}}>Есть активные заявки по автомобилю.</p><Link className="btn primary" href={`/admin/leads/${active.id}`}>Открыть активную заявку</Link></div>;return <div className="notice"><p style={{marginTop:0}}>Можно добавить новую запись обслуживания или вернуться к клиенту.</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><a className="btn primary" href="#service-history-form">Добавить обслуживание</a>{customer&&<Link className="btn" href={`/admin/customers/${customer.id}`}>К клиенту</Link>}</div></div>}
 
 export default async function VehicleDetails({params}){
-  const vehicle=await getVehicle(params.id);
+  const {id}=await params;
+  const vehicle=await getVehicle(id);
   if(!vehicle)return <><Header/><main className="main"><section className="card"><h1>Автомобиль не найден</h1><Link className="btn primary" href="/admin">Назад</Link></section></main><Footer/></>;
   const [customer,leads,history]=await Promise.all([vehicle.customer_id?getCustomer(vehicle.customer_id):null,getVehicleLeads(vehicle.id),getVehicleServiceHistory(vehicle.id)]);
   return <><Header/><main className="main adminPage">

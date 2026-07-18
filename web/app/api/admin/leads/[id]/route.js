@@ -5,7 +5,7 @@ export async function PATCH(request,{params}){
   try{
     const data=await request.json();
     const action=String(data.action||'').trim();
-    const id=params.id;
+    const {id}=await params;
     let result=null;
     if(action==='lead_status')result=await updateLeadStatus(id,data.status);
     else if(action==='contact_status')result=await updateLeadContactStatus(id,data.contact_status);
@@ -22,7 +22,8 @@ export async function PATCH(request,{params}){
 
 export async function DELETE(request,{params}){
   try{
-    const result=await deleteLeadAdmin(params.id);
+    const {id}=await params;
+    const result=await deleteLeadAdmin(id);
     return Response.json({ok:true,result});
   }catch(e){
     return Response.json({ok:false,error:'Не удалось удалить заявку',details:String(e?.message||e)},{status:500});

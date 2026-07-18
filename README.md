@@ -15,8 +15,8 @@ supabase/   SQL-схемы и безопасные добавочные мигр
 - Публичные страницы сайта: главная, проверка запчасти, каталог, корзина-черновик, запись, контакты.
 - API заявок: `/api/leads` сохраняет обращения в Supabase и может отправлять уведомление в Telegram.
 - Админка: `/admin` и `/api/admin/*` защищены `ADMIN_BASIC_AUTH` или `ADMIN_SECRET`.
-- Кабинет клиента: серверные API, OTP-вход, HTTP-only cookie и middleware-защита уже реализованы; ссылка в меню включается флагом `NEXT_PUBLIC_CABINET_ENABLED=true`.
-- Supabase SQL: базовые таблицы клиентов, автомобилей, заявок, комментариев, истории обслуживания, OTP-кодов и rate limit.
+- Кабинет клиента: учётную запись создаёт менеджер, вход выполняется по телефону и паролю; HTTP-only cookie и middleware-защита уже реализованы. Ссылка в меню включается флагом `NEXT_PUBLIC_CABINET_ENABLED=true`.
+- Supabase SQL: базовые таблицы клиентов, автомобилей, заявок, комментариев, истории обслуживания, парольного доступа и rate limit.
 - Проверки: `npm run smoke` для статической проверки проекта и `npm run smoke:live` для проверки развернутого сайта.
 
 ## Локальный запуск сайта
@@ -36,6 +36,7 @@ npm run dev
 NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 ADMIN_BASIC_AUTH или ADMIN_SECRET
+CABINET_SESSION_SECRET (если включён кабинет клиента)
 ```
 
 Telegram-уведомления дополнительно требуют:
@@ -47,17 +48,11 @@ TELEGRAM_CHAT_ID
 
 ## Supabase
 
-Перед запуском на реальной базе примените SQL из папки `supabase/` в Supabase SQL Editor. Безопасный порядок:
+Перед запуском примените одну основную миграцию:
 
-1. `supabase/rsservice26_core_schema.sql`
-2. `supabase/customers_admin_fields.sql`
-3. `supabase/vehicles_admin_fields.sql`
-4. `supabase/p3_cabinet_schema.sql`
-5. `supabase/cabinet_login_codes.sql`
-6. `supabase/rate_limits.sql`
-7. `supabase/normalize_customer_status.sql`
+1. `supabase/launch_ready_schema.sql`
 
-Файлы используют `create table if not exists` и `add column if not exists`, поэтому рассчитаны на аккуратное добавление недостающих объектов без удаления production-данных.
+Она создаёт недостающие таблицы, включает RLS, закрывает клиентский доступ к таблицам и выдаёт доступ только серверной роли. Остальные SQL-файлы сохранены как история отдельных этапов.
 
 ## Проверки
 
@@ -105,3 +100,4 @@ npm start
 - Оплата и реальные финансовые настройки не подключены.
 - Корзина на сайте — это черновик подбора на устройстве клиента, а не интернет-магазин с оплатой.
 - `SUPABASE_SERVICE_ROLE_KEY` должен храниться только на сервере/Vercel, не публикуйте его в клиентском коде.
+- При переходе со старого OTP-входа существующий `CABINET_OTP_SECRET` временно принимается как секрет сессии; для новых настроек используйте `CABINET_SESSION_SECRET`.

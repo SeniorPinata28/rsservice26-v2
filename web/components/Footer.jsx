@@ -1,1 +1,2 @@
-export default function Footer(){return <footer className="footer">© 2026 RSService26</footer>}
+import Link from 'next/link'
+export default function Footer(){return <footer className="footer"><div className="footerInner"><img src="/brand/rs-logo.webp" alt="RS Service 26"/><p>Специализированный сервис и запчасти Hyundai / Kia в Ставрополе</p><nav><Link href="/availability">Проверить запчасть</Link><Link href="/booking">Записаться</Link><Link href="/contact">Контакты</Link></nav><a href="tel:+79679677042">+7 (967) 967-70-42</a></div><small>© 2026 RS Service 26</small></footer>}
