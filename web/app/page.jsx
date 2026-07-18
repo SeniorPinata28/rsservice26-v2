@@ -1,6 +1,7 @@
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Link from 'next/link';
+import Image from 'next/image';
 import {services,parts} from '../data';
 
 export default function Home(){
@@ -29,7 +30,7 @@ export default function Home(){
 
     <div className="homeColumns pageShell">
       <div>
-        <section className="homeSection"><div className="sectionHead"><div><h2>Популярные запчасти</h2><p className="muted">Проверка цены и остатков в реальном времени</p></div><Link className="textLink" href="/parts">Весь каталог →</Link></div><div className="featuredParts">{topParts.map(p=><article className="darkProduct" key={p.sku}><span className="stockBadge">В наличии</span><div className="productVisual">{p.category.slice(0,1)}</div><h3>{p.name}</h3><small>{p.sku}</small><p>{p.compatibility}</p><div className="productBottom"><b>{p.price}</b><span>{p.stock} шт.</span></div><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div></section>
+        <section className="homeSection"><div className="sectionHead"><div><h2>Популярные запчасти</h2><p className="muted">Проверка цены и остатков в реальном времени</p></div><Link className="textLink" href="/parts">Весь каталог →</Link></div><div className="featuredParts">{topParts.map(p=><article className="darkProduct" key={p.sku}><span className="stockBadge">В наличии</span><div className="productVisual"><Image src={p.image} alt={p.name} width={320} height={220} sizes="(max-width: 640px) 80vw, 260px"/></div><h3>{p.name}</h3><small>{p.sku}</small><p>{p.compatibility}</p><div className="productBottom"><b>{p.price}</b><span>{p.stock} шт.</span></div><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div></section>
         <section className="bookingBanner"><div><h2>Запишитесь на сервис</h2><p>Выберите удобное время — менеджер подтвердит запись</p></div><Link className="btn primary" href="/booking">Записаться</Link></section>
       </div>
       <aside className="homeAside"><section className="darkPanel"><div className="sectionHead"><h2>Стандартные работы</h2><Link className="textLink" href="/services">Все услуги и цены</Link></div>{topServices.map(s=><div className="priceRow" key={s.name}><span>{s.name}</span><i/><b>{s.price}</b></div>)}<Link className="panelLink" href="/services">Показать все услуги</Link></section><section className="helpPanel"><div><b>Нужна помощь?</b><p>Менеджер подберёт запчасти и рассчитает стоимость работ</p></div><Link className="btn" href="/contact">Связаться</Link></section></aside>
