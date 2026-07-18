@@ -84,6 +84,10 @@ alter table public.leads enable row level security;
 alter table public.manager_comments enable row level security;
 alter table public.service_history enable row level security;
 alter table public.rate_limits enable row level security;
+
+-- Refresh PostgREST after all idempotent schema updates so admin forms can
+-- use newly added columns without waiting for the schema cache to expire.
+notify pgrst, 'reload schema';
 revoke all on table public.customers, public.vehicles, public.leads, public.manager_comments, public.service_history, public.rate_limits from anon, authenticated;
 grant usage on schema public to service_role;
 grant all on table public.customers, public.vehicles, public.leads, public.manager_comments, public.service_history, public.rate_limits to service_role;

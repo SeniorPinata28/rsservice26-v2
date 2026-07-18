@@ -19,3 +19,6 @@ create index if not exists vehicles_vin_idx
 
 create index if not exists vehicles_plate_number_idx
   on public.vehicles (plate_number);
+
+-- Make the new fields available to the Data API immediately.
+notify pgrst, 'reload schema';

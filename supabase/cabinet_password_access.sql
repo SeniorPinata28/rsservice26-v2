@@ -10,3 +10,6 @@ alter table public.customers
 create index if not exists customers_cabinet_enabled_idx
   on public.customers (cabinet_enabled)
   where cabinet_enabled = true;
+
+-- Make the new fields available to the Data API immediately.
+notify pgrst, 'reload schema';
