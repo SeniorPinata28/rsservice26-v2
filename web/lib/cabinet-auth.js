@@ -4,7 +4,7 @@ import {cookies} from 'next/headers';
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
 function sessionSecret(){
-  const secret=String(process.env.CABINET_SESSION_SECRET||'');
+  const secret=String(process.env.CABINET_SESSION_SECRET||process.env.CABINET_OTP_SECRET||'');
   if(secret)return secret;
   if(process.env.NODE_ENV!=='production')return 'rsservice26-local-development-only';
   return '';

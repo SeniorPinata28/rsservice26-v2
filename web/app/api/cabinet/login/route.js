@@ -13,7 +13,13 @@ export async function POST(request){
     if(!phone)return Response.json({ok:false,error:'Введите корректный российский номер телефона'},{status:400});
     if(!password)return Response.json({ok:false,error:'Введите пароль'},{status:400});
 
-    const limit=await checkRateLimit({request,scope:'cabinet_password_login',phone,windowSeconds:300,limit:10});
+    const limit=await checkRateLimit({
+      request,
+      scope:'cabinet_password_login',
+      phone,
+      windowSeconds:Number(process.env.CABINET_LOGIN_RATE_LIMIT_WINDOW_SECONDS||process.env.CABINET_OTP_RATE_LIMIT_WINDOW_SECONDS||300),
+      limit:Number(process.env.CABINET_LOGIN_RATE_LIMIT_MAX||process.env.CABINET_OTP_RATE_LIMIT_MAX||10)
+    });
     if(!limit.ok)return rateLimitResponse(limit,'Слишком много попыток входа. Попробуйте через несколько минут.');
 
     const customer=await findConfirmedCustomerByPhone(phone);
