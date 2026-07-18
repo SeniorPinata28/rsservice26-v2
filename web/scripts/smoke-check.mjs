@@ -37,6 +37,7 @@ const required=[
   'lib/db.js',
   'lib/admin-edit.js',
   'lib/cabinet-auth.js',
+  'lib/pricing.js',
   'lib/rate-limit.js',
   'lib/service-history.js',
   'scripts/live-smoke.mjs',
@@ -109,6 +110,12 @@ if(exists('lib/cabinet-auth.js')){
   must(auth,/scryptSync/,'cabinet passwords must use scrypt');
   must(auth,/timingSafeEqual/,'password verification must use timing-safe comparison');
   mustNot(auth,/SUPABASE_SERVICE_ROLE_KEY\|\|'rsservice26-dev-session-secret'/,'cabinet session must use a dedicated production secret');
+}
+
+if(exists('lib/pricing.js')){
+  const pricing=read('lib/pricing.js');
+  must(pricing,/DEFAULT_MARKUP_PERCENT=60/,'default parts markup must be 60%');
+  must(pricing,/Math\.ceil\(purchase\*\(1\+getMarkupPercent\(env\)\/100\)\)/,'client price must be purchase price plus configured percent');
 }
 
 if(exists('app/setup/page.jsx')||exists('app/rossko-setup/page.jsx'))errors.push('public setup page found');

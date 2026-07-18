@@ -1,5 +1,6 @@
 import soap from 'soap';
 import iconv from 'iconv-lite';
+import {calculateClientPrice,getMarkupPercent} from './pricing.js';
 
 const SEARCH_WSDL = 'https://api.rossko.ru/service/v2.1/GetSearch?wsdl';
 const DETAILS_WSDL = 'https://api.rossko.ru/service/v2.1/GetCheckoutDetails?wsdl';
@@ -8,17 +9,6 @@ function credentials(){
   const KEY1 = process.env.ROSSKO_KEY1;
   const KEY2 = process.env.ROSSKO_KEY2;
   return {KEY1, KEY2, ready: Boolean(KEY1 && KEY2)};
-}
-
-function markupRate(){
-  const raw = Number(String(process.env.RSSERVICE26_MARKUP || '1.25').replace(',', '.'));
-  return raw > 0 ? raw : 1.25;
-}
-
-function salePrice(value){
-  const n = Number(String(value || '').replace(',', '.'));
-  if (!n) return null;
-  return Math.ceil(n * markupRate());
 }
 
 function list(value){
@@ -112,7 +102,7 @@ function parseParts(data){
         id: String(stock.id || ''),
         price: String(stock.price || ''),
         purchasePrice,
-        salePrice: salePrice(purchasePrice),
+        salePrice: calculateClientPrice(purchasePrice),
         count: Number(stock.count || 0),
         multiplicity: Number(stock.multiplicity || 1),
         type: String(stock.type || ''),
@@ -157,7 +147,7 @@ export async function searchRossko(query){
   try {
     const {response, data} = await call(SEARCH_WSDL, 'GetSearch', {KEY1, KEY2, text: query, delivery_id: deliveryId, address_id: addressId});
     const parts = parseParts(data);
-    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), markup: markupRate(), parts, rawCount: parts.length, raw: debugRaw(response)};
+    return {ok: true, configured: true, success: data?.success, message: fixText(data?.message || ''), markupPercent: getMarkupPercent(), parts, rawCount: parts.length, raw: debugRaw(response)};
   } catch (error) {
     return {ok: false, configured: true, error: error.message || 'Rossko SOAP error', raw: String(error.message || error).slice(0, 1000)};
   }

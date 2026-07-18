@@ -1,4 +1,5 @@
 import {db,dbReady} from '../../../../lib/db.js';
+import {calculateClientPrice,getMarkupPercent} from '../../../../lib/pricing.js';
 
 async function checkTable(name){
   const r=await db(`${name}?select=*&limit=1`);
@@ -19,6 +20,7 @@ export async function GET(){
     tables:{},
     telegram:{configured:Boolean((process.env.TELEGRAM_BOT_TOKEN||process.env.BOT_TOKEN)&&(process.env.TELEGRAM_CHAT_ID||process.env.MANAGER_CHAT_ID))},
     rossko:{configured:Object.values(rosskoEnv).every(Boolean),env:rosskoEnv},
+    pricing:{markup_percent:getMarkupPercent(),example:{purchase_price:100,client_price:calculateClientPrice(100)}},
     required_lead_fields:['public_id','created_at','type','status','source','name','phone','car_text','vin','mileage','request_text','raw_payload','customer_id','vehicle_id'],
     notes:[]
   };
