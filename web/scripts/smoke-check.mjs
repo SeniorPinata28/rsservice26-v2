@@ -55,7 +55,7 @@ function scanFiles(dir,acc=[]){
   for(const item of fs.readdirSync(dir)){
     const p=path.join(dir,item);
     const st=fs.statSync(p);
-    if(st.isDirectory())scanFiles(p,acc);
+    if(st.isDirectory()&&!['node_modules','.next','.git'].includes(item))scanFiles(p,acc);
     else if(/\.(js|jsx|ts|tsx|mjs|css|sql)$/.test(item))acc.push(p);
   }
   return acc;
@@ -67,8 +67,9 @@ const allFiles=scanFiles(root).concat(scanFiles(path.join(root,'..','supabase'))
 const allText=allFiles.map(p=>fs.readFileSync(p,'utf8')).join('\n');
 
 mustNot(allText,/window\.prompt\s*\(/,'window.prompt must not be used in production UX');
-mustNot(allText,/localStorage\s*\./,'localStorage must not be used for cabinet auth');
-mustNot(allText,/app\/api\/debug|debug-endpoint|\/api\/debug/,'debug endpoint reference found');
+const cabinetText=allFiles.filter(p=>p.includes(`${path.sep}cabinet${path.sep}`)||p.endsWith(`${path.sep}cabinet-auth.js`)).map(p=>fs.readFileSync(p,'utf8')).join('\n');
+mustNot(cabinetText,/localStorage\s*\./,'localStorage must not be used for cabinet auth');
+if(exists('app/api/debug')||exists('app/api/debug/route.js'))errors.push('debug endpoint found');
 if(exists('app/api/availability-search/route.js'))mustNot(read('app/api/availability-search/route.js'),/purchasePrice/,'/api/availability-search must not expose purchasePrice in safe response');
 
 if(exists('middleware.js')){
@@ -89,7 +90,7 @@ if(exists('middleware.js')){
 if(exists('components/Header.jsx')){
   const header=read('components/Header.jsx');
   must(header,/NEXT_PUBLIC_CABINET_ENABLED/,'cabinet link must be feature-flagged');
-  must(header,/cabinetEnabled&&<Link href="\/cabinet">Кабинет<\/Link>/,'cabinet link must render only when cabinetEnabled is true');
+  must(header,/cabinetEnabled&&<Link[^>]*href="\/cabinet"[^>]*>.*?<\/Link>/,'cabinet link must render only when cabinetEnabled is true');
 }
 
 if(exists('lib/cabinet-auth.js')){

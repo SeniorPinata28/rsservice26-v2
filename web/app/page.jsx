@@ -4,51 +4,39 @@ import Link from 'next/link';
 import {services,parts} from '../data';
 
 export default function Home(){
-  const topServices=services.slice(0,3);
+  const topServices=services.slice(0,8);
   const topParts=parts.slice(0,3);
-  return <><Header/><main className="main">
-    <section className="hero" style={{padding:'56px 46px'}}>
-      <span className="badge">Hyundai / Kia · Ставрополь</span>
-      <h1>Запчасти и сервис без лишних действий</h1>
-      <p>Проверьте наличие детали, оставьте заявку или запишитесь на сервис. Менеджер получит обращение в Telegram и обработает его в админке.</p>
-      <div className="heroActions">
-        <Link className="btn primary" href="/availability">Проверить запчасть</Link>
-        <Link className="btn glass" href="/booking">Записаться на сервис</Link>
-        <a className="btn glass" href="tel:+79679677042">Позвонить</a>
-      </div>
-    </section>
-
-    <section className="section card searchPanel" style={{marginTop:-24,position:'relative',zIndex:2}}>
-      <div className="sectionHead">
-        <div>
-          <h2>Быстрая проверка детали</h2>
-          <p className="muted">Введите артикул или точное название. Если позиция не найдётся, можно сразу отправить запрос менеджеру.</p>
+  return <><Header/><main className="homePage">
+    <section className="homeHero">
+      <div className="homeHeroOverlay">
+        <div className="homeHeroText">
+          <span className="eyebrow">Hyundai & Kia · Ставрополь</span>
+          <h1>Проверьте наличие<br/>запчастей <em>Hyundai</em> и <strong>Kia</strong><br/>за 15 секунд</h1>
+          <p>Оригинальные детали и проверенные аналоги<br/>с актуальными ценами и сроками поставки</p>
         </div>
-      </div>
-      <form action="/availability" className="homeSearchForm">
-        <input className="input" name="q" placeholder="Например: 28113-1R100 или насос масляный"/>
-        <button className="btn primary">Проверить</button>
-      </form>
-    </section>
-
-    <section className="section">
-      <div className="sectionHead"><h2>Что можно сделать на сайте</h2></div>
-      <div className="grid">
-        <Link className="card" href="/availability"><span className="badge">01</span><h3>Проверить запчасть</h3><p className="muted">По артикулу или названию. Если есть остаток — можно сразу оставить заявку.</p></Link>
-        <Link className="card" href="/booking"><span className="badge">02</span><h3>Записаться на сервис</h3><p className="muted">Ремонт, диагностика, ТО, установка купленной детали.</p></Link>
-        <Link className="card" href="/parts"><span className="badge">03</span><h3>Открыть каталог</h3><p className="muted">Популярные позиции с быстрым переходом к заявке или проверке наличия.</p></Link>
-        <Link className="card" href="/contact"><span className="badge">04</span><h3>Задать вопрос</h3><p className="muted">Контактная заявка напрямую менеджеру.</p></Link>
+        <div className="heroSpacer" aria-hidden="true"/>
+        <form action="/availability" className="heroSearch">
+          <div className="searchTabs"><span className="active">Артикул</span><span>VIN</span><span>Название детали</span></div>
+          <div className="heroSearchRow"><input className="input" name="q" required placeholder="Введите артикул или название детали"/><button className="btn primary">Проверить наличие</button></div>
+          <small>Примеры: 26300-35503, 28113-1R100, 97133-D1000</small>
+        </form>
       </div>
     </section>
 
-    <section className="section">
-      <div className="sectionHead"><h2>Популярные услуги</h2><Link className="btn" href="/services">Все услуги</Link></div>
-      <div className="grid">{topServices.map(s=><article className="card" key={s.name}><h3>{s.name}</h3><p className="muted">{s.description}</p><p>Срок: <b>{s.time}</b></p><p className="price">{s.price}</p><Link className="btn primary" href="/booking">Записаться</Link></article>)}</div>
-    </section>
+    <section className="trustBar pageShell">{[
+      ['◇','Гарантия','на все запчасти и работы'],['✺','Оригинальные запчасти','и качественные аналоги'],['▱','Быстрая доставка','по Ставрополю и России'],['▣','Честная стоимость','подтверждает менеджер'],['♧','Опытные мастера','Hyundai и Kia']
+    ].map(([icon,title,text])=><div key={title}><i>{icon}</i><span><b>{title}</b><small>{text}</small></span></div>)}</section>
 
-    <section className="section">
-      <div className="sectionHead"><h2>Запчасти для быстрой проверки</h2><Link className="btn" href="/parts">Открыть каталог</Link></div>
-      <div className="grid">{topParts.map(p=><article className="card" key={p.sku}><span className="badge">{p.category}</span><h3>{p.name}</h3><p className="muted">{p.sku}</p><p>{p.compatibility}</p><p className="stock">В наличии: {p.stock} шт.</p><p className="price">{p.price}</p><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить наличие</Link></article>)}</div>
-    </section>
+    <div className="homeColumns pageShell">
+      <div>
+        <section className="homeSection"><div className="sectionHead"><div><h2>Популярные запчасти</h2><p className="muted">Проверка цены и остатков в реальном времени</p></div><Link className="textLink" href="/parts">Весь каталог →</Link></div><div className="featuredParts">{topParts.map(p=><article className="darkProduct" key={p.sku}><span className="stockBadge">В наличии</span><div className="productVisual">{p.category.slice(0,1)}</div><h3>{p.name}</h3><small>{p.sku}</small><p>{p.compatibility}</p><div className="productBottom"><b>{p.price}</b><span>{p.stock} шт.</span></div><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div></section>
+        <section className="bookingBanner"><div><h2>Запишитесь на сервис</h2><p>Выберите удобное время — менеджер подтвердит запись</p></div><Link className="btn primary" href="/booking">Записаться</Link></section>
+      </div>
+      <aside className="homeAside"><section className="darkPanel"><div className="sectionHead"><h2>Стандартные работы</h2><Link className="textLink" href="/services">Весь прайс</Link></div>{topServices.map(s=><div className="priceRow" key={s.name}><span>{s.name}</span><i/><b>{s.price}</b></div>)}<Link className="panelLink" href="/services">Показать все услуги</Link></section><section className="helpPanel"><div><b>Нужна помощь?</b><p>Менеджер подберёт запчасти и рассчитает стоимость работ</p></div><Link className="btn" href="/contact">Связаться</Link></section></aside>
+    </div>
+
+    <section className="processSection pageShell" id="about"><div className="sectionHead"><h2>Как мы работаем</h2><span className="badge">Без лишних действий</span></div><div className="processGrid">{[['01','Оставляете запрос','Артикул, VIN или описание проблемы'],['02','Проверяем и считаем','Наличие, аналоги, работы и точный срок'],['03','Подтверждаем с вами','Менеджер согласует итоговую стоимость'],['04','Выдаём с гарантией','Запчасть или готовый автомобиль']].map(([n,t,d])=><article key={n}><b>{n}</b><div><h3>{t}</h3><p>{d}</p></div></article>)}</div></section>
+    <section className="statsBar pageShell" id="offers">{[['8+','лет на рынке'],['5000+','довольных клиентов'],['20+','специалистов в команде'],['100%','гарантия на работы']].map(([n,t])=><div key={n}><b>{n}</b><span>{t}</span></div>)}</section>
+    <section className="bottomCta"><div><b>Нужна запчасть или ремонт?</b><span>Оставьте заявку — менеджер ответит и подтвердит детали.</span></div><div><Link className="btn primary" href="/availability">Проверить запчасть</Link><Link className="btn glass" href="/booking">Записаться</Link></div></section>
   </main><Footer/></>
 }
