@@ -1,8 +1,10 @@
 import {getCabinetSessionFromRequest,hashCabinetPassword,validateCabinetPassword,verifyCabinetPassword} from '../../../../lib/cabinet-auth.js';
 import {db,getCustomer} from '../../../../lib/db.js';
+import {publicError,requestTooLarge} from '../../../../lib/validation.js';
 
 export async function POST(request){
   try{
+    if(requestTooLarge(request,8192))return Response.json({ok:false,error:'Слишком большой запрос'},{status:413});
     const session=getCabinetSessionFromRequest(request);
     if(!session?.customer_id)return Response.json({ok:false,error:'Требуется вход в кабинет'},{status:401});
     const data=await request.json().catch(()=>({}));
@@ -16,5 +18,5 @@ export async function POST(request){
     const updated=await db('customers?id=eq.'+encodeURIComponent(customer.id),{method:'PATCH',body:{password_hash:hashCabinetPassword(newPassword),must_change_password:false,password_updated_at:new Date().toISOString()}});
     if(!updated.ok)throw new Error('Не удалось сохранить пароль');
     return Response.json({ok:true});
-  }catch(e){return Response.json({ok:false,error:String(e?.message||e)},{status:500})}
+  }catch(e){return publicError(e)}
 }

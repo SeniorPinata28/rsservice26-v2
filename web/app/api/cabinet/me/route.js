@@ -1,5 +1,6 @@
 import {getCabinetSessionFromRequest} from '../../../../lib/cabinet-auth.js';
 import {dbReady,getCustomer,getCustomerLeads,getCustomerServiceHistory,getCustomerVehicles,getPublicLeadComments} from '../../../../lib/db.js';
+import {publicError} from '../../../../lib/validation.js';
 
 function noteValue(notes,label){return String(notes||'').match(new RegExp(label+':\\s*([^\\n]+)','i'))?.[1]||''}
 function publicCustomer(customer){return {id:customer.id,name:customer.full_name||customer.name||'Клиент RSService26',phone:customer.phone||'',email:customer.email||'',status:customer.status||'confirmed',created_at:customer.created_at||'',must_change_password:Boolean(customer.must_change_password)}}
@@ -24,6 +25,6 @@ export async function GET(request){
     }
     return Response.json({ok:true,customer:publicCustomer(customer),vehicles:vehicles.map(publicVehicle),leads:leads.map(lead=>publicLead(lead,commentsByLead)),service_history:history.map(publicHistory)});
   }catch(e){
-    return Response.json({ok:false,error:'Не удалось загрузить кабинет',details:String(e?.message||e)},{status:500});
+    return publicError(e);
   }
 }

@@ -20,7 +20,8 @@ function NextAction({lead,vehicles}){
 }
 
 export default async function LeadDetails({params}){
-  const lead=await getLead(params.id);
+  const {id}=await params;
+  const lead=await getLead(id);
   if(!lead){return <><Header/><main className="main"><section className="card" style={{padding:24}}><h1>Заявка не найдена</h1><Link className="btn primary" href="/admin">Назад в админку</Link></section></main><Footer/></>}
   const raw=lead.raw_payload||{};
   const contactStatus=lead.contact_status||raw.contact_status||'unverified';

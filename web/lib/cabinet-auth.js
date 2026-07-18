@@ -3,12 +3,18 @@ import {cookies} from 'next/headers';
 
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
-const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
+function sessionSecret(){
+  const secret=String(process.env.CABINET_SESSION_SECRET||'');
+  if(secret)return secret;
+  if(process.env.NODE_ENV!=='production')return 'rsservice26-local-development-only';
+  return '';
+}
 
 function ttlSeconds(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback}
 function base64url(input){return Buffer.from(input).toString('base64url')}
 function fromBase64url(input){return Buffer.from(input,'base64url').toString('utf8')}
-function sign(value){return crypto.createHmac('sha256',SESSION_SECRET).update(value).digest('base64url')}
+function sign(value){const secret=sessionSecret();if(!secret)throw new Error('CABINET_SESSION_SECRET is not configured');return crypto.createHmac('sha256',secret).update(value).digest('base64url')}
+function safeEqual(left,right){try{const a=Buffer.from(String(left));const b=Buffer.from(String(right));return a.length===b.length&&crypto.timingSafeEqual(a,b)}catch(e){return false}}
 
 export function normalizeCabinetPhone(phone){
   const digits=String(phone||'').replace(/\D/g,'');
@@ -53,7 +59,8 @@ export function createCabinetSessionToken(customerId){
 export function verifyCabinetSessionToken(token){
   const [encoded,signature]=String(token||'').split('.');
   if(!encoded||!signature)return null;
-  if(sign(encoded)!==signature)return null;
+  let expected='';try{expected=sign(encoded)}catch(e){return null}
+  if(!safeEqual(expected,signature))return null;
   try{
     const payload=JSON.parse(fromBase64url(encoded));
     if(!payload?.customer_id)return null;

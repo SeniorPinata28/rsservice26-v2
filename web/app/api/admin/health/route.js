@@ -27,7 +27,7 @@ export async function GET(){
     result.notes.push('Supabase env vars are missing: NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY');
     return Response.json(result,{status:500});
   }
-  const tables=['leads','customers','manager_comments','vehicles','bookings','parts_requests','service_history','statuses','auth_login_tokens'];
+  const tables=['leads','customers','manager_comments','vehicles','service_history','rate_limits'];
   for(const table of tables){result.tables[table]=await checkTable(table)}
   result.supabase.ok=Boolean(result.tables.leads?.ok);
   if(!result.tables.leads?.ok){result.ok=false;result.notes.push('Table leads is not readable by service role key')}

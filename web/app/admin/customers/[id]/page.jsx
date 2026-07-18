@@ -19,7 +19,8 @@ function editableCustomer(c){return {id:c.id,full_name:c.full_name||'',name:c.na
 function NextAction({vehicles}){return <div className="notice">{vehicles.length===0?<><p style={{marginTop:0}}>Добавьте автомобиль клиента.</p><a className="btn primary" href="#add-vehicle">Добавить автомобиль</a></>:<><p style={{marginTop:0}}>Откройте автомобиль или вернитесь к заявке для привязки.</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="btn primary" href={`/admin/vehicles/${vehicles[0].id}`}>Открыть первый автомобиль</Link><Link className="btn" href="/admin">Назад в заявки</Link></div></>}</div>}
 
 export default async function CustomerDetails({params}){
-  const customer=await getCustomer(params.id);
+  const {id}=await params;
+  const customer=await getCustomer(id);
   if(!customer)return <><Header/><main className="main"><section className="card"><h1>Клиент не найден</h1><Link className="btn primary" href="/admin">Назад</Link></section></main><Footer/></>;
   const [vehicles,leads]=await Promise.all([getCustomerVehicles(customer.id),getCustomerLeads(customer.id)]);
   return <><Header/><main className="main adminPage">

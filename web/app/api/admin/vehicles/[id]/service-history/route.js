@@ -2,8 +2,9 @@ import {createServiceHistoryForVehicle} from '../../../../../../lib/service-hist
 
 export async function POST(request,{params}){
   try{
+    const {id}=await params;
     const data=await request.json().catch(()=>({}));
-    const result=await createServiceHistoryForVehicle(params.id,data);
+    const result=await createServiceHistoryForVehicle(id,data);
     return Response.json({ok:true,result});
   }catch(e){
     return Response.json({ok:false,error:'Не удалось добавить запись обслуживания',details:String(e?.message||e)},{status:500});

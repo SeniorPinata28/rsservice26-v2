@@ -36,6 +36,7 @@ npm run dev
 NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 ADMIN_BASIC_AUTH или ADMIN_SECRET
+CABINET_SESSION_SECRET (если включён кабинет клиента)
 ```
 
 Telegram-уведомления дополнительно требуют:
@@ -47,17 +48,11 @@ TELEGRAM_CHAT_ID
 
 ## Supabase
 
-Перед запуском на реальной базе примените SQL из папки `supabase/` в Supabase SQL Editor. Безопасный порядок:
+Перед запуском примените одну основную миграцию:
 
-1. `supabase/rsservice26_core_schema.sql`
-2. `supabase/customers_admin_fields.sql`
-3. `supabase/vehicles_admin_fields.sql`
-4. `supabase/p3_cabinet_schema.sql`
-5. `supabase/cabinet_password_access.sql`
-6. `supabase/rate_limits.sql`
-7. `supabase/normalize_customer_status.sql`
+1. `supabase/launch_ready_schema.sql`
 
-Файлы используют `create table if not exists` и `add column if not exists`, поэтому рассчитаны на аккуратное добавление недостающих объектов без удаления production-данных.
+Она создаёт недостающие таблицы, включает RLS, закрывает клиентский доступ к таблицам и выдаёт доступ только серверной роли. Остальные SQL-файлы сохранены как история отдельных этапов.
 
 ## Проверки
 

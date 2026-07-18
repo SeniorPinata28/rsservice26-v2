@@ -1,6 +1,7 @@
 import {getCabinetSessionFromRequest} from '../../../../lib/cabinet-auth.js';
 import {createLead,dbReady,getCustomer,getCustomerVehicles,normalizePhone} from '../../../../lib/db.js';
 import {checkRateLimit,rateLimitResponse} from '../../../../lib/rate-limit.js';
+import {cleanText,publicError,requestTooLarge,validVin} from '../../../../lib/validation.js';
 
 function value(data,...keys){for(const key of keys){const v=data?.[key];if(v!==undefined&&v!==null&&String(v).trim()!=='')return String(v).trim()}return ''}
 function typeValue(type){const allowed={parts_order:'parts_order',service_booking:'service_booking',general_callback:'general_callback',cabinet_data_correction:'cabinet_data_correction',cabinet_vehicle_request:'cabinet_vehicle_request',cabinet_request:'cabinet_request'};return allowed[type]||'cabinet_request'}
@@ -16,6 +17,7 @@ async function notifyTelegram(lead,type,name,phone,car,text,vin){
 
 export async function POST(request){
   try{
+    if(requestTooLarge(request))return Response.json({ok:false,error:'Слишком большой запрос'},{status:413});
     if(!dbReady())return Response.json({ok:false,error:'Supabase не настроен'},{status:500});
     const session=getCabinetSessionFromRequest(request);
     if(!session?.customer_id)return Response.json({ok:false,error:'Требуется вход в кабинет'},{status:401});
@@ -42,18 +44,19 @@ export async function POST(request){
 
     const type=typeValue(value(data,'type'));
     const name=customer.full_name||customer.name||'Клиент RSService26';
-    const car=value(data,'car_text','car')||vehicle?.car_text||[vehicle?.brand||vehicle?.make,vehicle?.model,vehicle?.year].filter(Boolean).join(' ');
-    const vin=value(data,'vin')||vehicle?.vin||'';
+    const car=cleanText(value(data,'car_text','car')||vehicle?.car_text||[vehicle?.brand||vehicle?.make,vehicle?.model,vehicle?.year].filter(Boolean).join(' '),250);
+    const vin=cleanText(value(data,'vin')||vehicle?.vin||'',17).toUpperCase();
     const mileage=value(data,'mileage')||vehicle?.mileage||'';
-    const comment=value(data,'comment','request_text','text','message');
+    const comment=cleanText(value(data,'comment','request_text','text','message'),3000);
     const text=comment||'Заявка из личного кабинета';
     if(!text)return Response.json({ok:false,error:'Укажите текст заявки'},{status:400});
+    if(!validVin(vin))return Response.json({ok:false,error:'VIN должен содержать 17 допустимых символов'},{status:400});
 
-    const raw={...data,source:'cabinet',customer_id:customer.id,vehicle_id:vehicle?.id||null,contact_status:'confirmed_client',lead_status:'new_contact'};
+    const raw={source:'cabinet',customer_id:customer.id,vehicle_id:vehicle?.id||null,contact_status:'confirmed_client',lead_status:'new_contact'};
     const savedLead=await createLead({type,name,phone,car,text,vin,mileage:mileage?Number(mileage):null,customerId:customer.id,vehicleId:vehicle?.id||null,source:'cabinet',raw});
     const tg=await notifyTelegram(savedLead,type,name,phone,car,text,vin);
-    return Response.json({ok:true,saved:true,lead:savedLead,...tg});
+    return Response.json({ok:true,saved:true,telegram:tg.telegram,lead:{id:savedLead.id,public_id:savedLead.public_id}});
   }catch(e){
-    return Response.json({ok:false,error:'Не удалось создать заявку из кабинета',details:String(e?.message||e)},{status:500});
+    return publicError(e);
   }
 }

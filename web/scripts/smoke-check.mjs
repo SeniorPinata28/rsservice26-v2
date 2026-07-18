@@ -43,7 +43,8 @@ const required=[
   '../supabase/cabinet_password_access.sql',
   '../supabase/rsservice26_core_schema.sql',
   '../supabase/rate_limits.sql',
-  '../supabase/normalize_customer_status.sql'
+  '../supabase/normalize_customer_status.sql',
+  '../supabase/launch_ready_schema.sql'
 ];
 
 function filePath(file){return path.join(root,file)}
@@ -107,7 +108,12 @@ if(exists('lib/cabinet-auth.js')){
   must(auth,/verifyCabinetPassword/,'cabinet auth must verify password hashes');
   must(auth,/scryptSync/,'cabinet passwords must use scrypt');
   must(auth,/timingSafeEqual/,'password verification must use timing-safe comparison');
+  mustNot(auth,/SUPABASE_SERVICE_ROLE_KEY\|\|'rsservice26-dev-session-secret'/,'cabinet session must use a dedicated production secret');
 }
+
+if(exists('app/setup/page.jsx')||exists('app/rossko-setup/page.jsx'))errors.push('public setup page found');
+if(!exists('next.config.mjs'))errors.push('security headers config is missing');
+if(!exists('app/robots.js')||!exists('app/sitemap.js'))errors.push('SEO robots/sitemap is missing');
 
 if(exists('lib/db.js')){
   const db=read('lib/db.js');
