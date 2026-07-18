@@ -90,8 +90,8 @@ if(exists('middleware.js')){
 
 if(exists('components/Header.jsx')){
   const header=read('components/Header.jsx');
-  must(header,/NEXT_PUBLIC_CABINET_ENABLED/,'cabinet link must be feature-flagged');
-  must(header,/cabinetEnabled&&<Link[^>]*href="\/cabinet"[^>]*>.*?<\/Link>/,'cabinet link must render only when cabinetEnabled is true');
+  must(header,/cabinetEnabled=true/,'cabinet must be enabled for production launch');
+  must(header,/cabinetEnabled&&<Link[^>]*href="\/cabinet"[^>]*>.*?<\/Link>/,'cabinet link must be rendered');
 }
 
 if(exists('lib/cabinet-auth.js')){
