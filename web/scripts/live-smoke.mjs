@@ -43,11 +43,9 @@ if(logoutNoCookie&&logoutNoCookie.status>=500)fail(`/api/cabinet/logout without 
 const clearCookie=setCookieFrom(logoutNoCookie);
 if(logoutNoCookie&&logoutNoCookie.status<500&&!clearCookie.includes('rs_cabinet_session='))fail('/api/cabinet/logout should set/clear rs_cabinet_session cookie');
 
-const unknownPhone=await post('/api/cabinet/request-code',{phone:'+79990000000'});
+const unknownPhone=await post('/api/cabinet/login',{phone:'+79990000000',password:'invalid-password'});
 if(unknownPhone){
-  const text=await textOf(unknownPhone);
-  if(![403,429,500].includes(unknownPhone.status))fail(`/api/cabinet/request-code unknown phone expected 403/429/500, got ${unknownPhone.status}`);
-  if(process.env.NODE_ENV==='production'&&/devCode|\b\d{6}\b/.test(text))fail('production cabinet request-code must not expose OTP code');
+  if(![401,429,500].includes(unknownPhone.status))fail(`/api/cabinet/login unknown phone expected 401/429/500, got ${unknownPhone.status}`);
 }
 
 const adminClosed=await get('/admin');

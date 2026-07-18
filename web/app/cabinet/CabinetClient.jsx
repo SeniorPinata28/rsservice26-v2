@@ -6,6 +6,26 @@ const leadStatusLabels={new_contact:'Новая',in_progress:'В работе',w
 const typeLabels={parts_order:'Запчасть',installation_booking:'Установка',service_booking:'Запись на сервис',general_callback:'Вопрос менеджеру',parts_selection_request:'Подбор',cabinet_data_correction:'Исправить данные',cabinet_vehicle_request:'Добавить автомобиль',cabinet_request:'Заявка из кабинета',part:'Запчасть',installation:'Установка',service:'Сервис',question:'Вопрос'};
 const emptyRequest={type:'service_booking',vehicle_id:'',car_text:'',vin:'',plate_number:'',comment:''};
 
+function PasswordChange({required,onDone}){
+  const [currentPassword,setCurrentPassword]=useState('');
+  const [newPassword,setNewPassword]=useState('');
+  const [repeatPassword,setRepeatPassword]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState('');
+  async function submit(e){
+    e.preventDefault();setMessage('');
+    if(newPassword!==repeatPassword){setMessage('Новые пароли не совпадают');return}
+    setBusy(true);
+    try{
+      const r=await fetch('/api/cabinet/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:currentPassword,new_password:newPassword})});
+      const data=await r.json().catch(()=>({ok:false,error:'Ошибка ответа сервера'}));
+      if(!data.ok){setMessage(data.error||'Не удалось изменить пароль');return}
+      setMessage('Пароль изменён');setCurrentPassword('');setNewPassword('');setRepeatPassword('');onDone?.();
+    }catch(e){setMessage('Не удалось изменить пароль')}finally{setBusy(false)}
+  }
+  return <section className="card passwordCard"><span className="badge">{required?'Требуется действие':'Безопасность'}</span><h2>{required?'Измените временный пароль':'Изменить пароль'}</h2><p className="muted">Новый пароль должен содержать не менее 8 символов.</p><form className="form" onSubmit={submit}>{message&&<p className="notice">{message}</p>}<input className="input" type="password" required value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} placeholder="Текущий пароль" autoComplete="current-password"/><input className="input" type="password" required minLength={8} maxLength={128} value={newPassword} onChange={e=>setNewPassword(e.target.value)} placeholder="Новый пароль" autoComplete="new-password"/><input className="input" type="password" required minLength={8} maxLength={128} value={repeatPassword} onChange={e=>setRepeatPassword(e.target.value)} placeholder="Повторите новый пароль" autoComplete="new-password"/><button className="btn primary" disabled={busy}>{busy?'Сохраняем...':'Сохранить новый пароль'}</button></form></section>
+}
+
 function formatDate(value){if(!value)return '—';try{return new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}}
 function value(v){return v===undefined||v===null||v===''?'—':String(v)}
 function vehicleName(vehicle){return vehicle?.car_text||[vehicle?.brand,vehicle?.model,vehicle?.year].filter(Boolean).join(' ')||'Автомобиль'}
@@ -76,6 +96,7 @@ export default function CabinetClient(){
 
   if(loading)return <section className="card emptyState"><span className="badge">Личный кабинет</span><h1>Загружаем кабинет</h1><p className="muted">Проверяем сессию и получаем данные клиента.</p></section>
   if(error)return <section className="card emptyState"><span className="badge">Личный кабинет</span><h1>Ошибка загрузки</h1><p className="notice">{error}</p><div className="cardActions"><button className="btn primary" onClick={load}>Повторить</button><button className="btn" onClick={logout}>Войти заново</button></div></section>
+  if(customer?.must_change_password)return <PasswordChange required onDone={load}/>;
 
   return <>
     <section className="hero"><span className="badge">Личный кабинет</span><h1>Кабинет клиента RSService26</h1><p>Ваши автомобили, заявки и история обслуживания. Данные доступны только по подтверждённой сессии.</p></section>
@@ -86,6 +107,8 @@ export default function CabinetClient(){
         <div className="leadRow" style={{cursor:'default'}}><div><b>{value(customer?.name)}</b><small>Имя</small></div><div><span>{value(customer?.phone)}</span><small>Телефон</small></div><div><span>{value(customer?.email)}</span><small>Email</small></div><p>Создан: {formatDate(customer?.created_at)}</p></div>
         <button className="btn" disabled={requestBusy} onClick={presetDataCorrection}>{requestBusy?'Отправляем...':'Сообщить об ошибке'}</button>
       </section>
+
+      <PasswordChange onDone={load}/>
 
       <section className="card">
         <div className="sectionHead"><div><h2>Мои автомобили</h2><p className="muted">Автомобиль добавляет менеджер после проверки данных.</p></div><button className="btn" disabled={requestBusy} onClick={presetVehicleRequest}>{requestBusy?'Отправляем...':'Добавить автомобиль через менеджера'}</button></div>

@@ -29,7 +29,7 @@ function cabinetRedirect(request){const url=request.nextUrl.clone();url.pathname
 export async function middleware(request){
   const pathname=request.nextUrl.pathname;
   const isAdminSurface=pathname==='/admin'||pathname.startsWith('/admin/')||pathname.startsWith('/api/admin/');
-  const isCabinetLogin=pathname==='/cabinet/login'||pathname.startsWith('/api/cabinet/request-code')||pathname.startsWith('/api/cabinet/login');
+  const isCabinetLogin=pathname==='/cabinet/login'||pathname.startsWith('/api/cabinet/login');
   const isCabinetPage=pathname==='/cabinet'||pathname.startsWith('/cabinet/');
   const isPrivateCabinetApi=pathname.startsWith('/api/cabinet/')&&!isCabinetLogin;
 

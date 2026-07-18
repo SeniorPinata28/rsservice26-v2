@@ -3,8 +3,7 @@ import {cookies} from 'next/headers';
 
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
-const OTP_PEPPER=process.env.CABINET_OTP_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-secret';
-const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.CABINET_OTP_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
+const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
 
 function ttlSeconds(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback}
 function base64url(input){return Buffer.from(input).toString('base64url')}
@@ -19,45 +18,29 @@ export function normalizeCabinetPhone(phone){
   return digits;
 }
 
-export function generateOtp(){
-  return String(Math.floor(100000+Math.random()*900000));
+export function validateCabinetPassword(password){
+  const value=String(password||'');
+  if(value.length<8)return 'Пароль должен содержать не менее 8 символов';
+  if(value.length>128)return 'Пароль слишком длинный';
+  return '';
 }
 
-export function hashOtp(phone,code){
-  return crypto.createHash('sha256').update(`${normalizeCabinetPhone(phone)}:${String(code||'').trim()}:${OTP_PEPPER}`).digest('hex');
+export function hashCabinetPassword(password){
+  const error=validateCabinetPassword(password);
+  if(error)throw new Error(error);
+  const salt=crypto.randomBytes(16).toString('base64url');
+  const hash=crypto.scryptSync(String(password),salt,64).toString('base64url');
+  return `scrypt$${salt}$${hash}`;
 }
 
-export function otpExpiresAt(){
-  return new Date(Date.now()+ttlSeconds(process.env.CABINET_OTP_TTL_SECONDS,600)*1000).toISOString();
-}
-
-export function canExposeDevCode(){
-  return process.env.CABINET_DEV_SHOW_CODE==='true'&&process.env.NODE_ENV!=='production';
-}
-
-async function deliverCabinetCodeViaSmsRu(phone,code){
-  const apiKey=process.env.SMS_RU_API_KEY||process.env.SMS_API_KEY;
-  if(!apiKey)return {ok:false,error:'SMS_RU_API_KEY не настроен'};
-  const to=normalizeCabinetPhone(phone);
-  const text=`RSService26: код входа ${code}`;
-  const body=new URLSearchParams({api_id:apiKey,to,msg:text,json:'1'});
-  const response=await fetch('https://sms.ru/sms/send',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-  const data=await response.json().catch(()=>null);
-  if(!response.ok)return {ok:false,error:'SMS.ru HTTP '+response.status};
-  if(data?.status!=='OK')return {ok:false,error:data?.status_text||'SMS.ru не принял сообщение'};
-  const phoneResult=data?.sms?.[to];
-  if(phoneResult?.status&&phoneResult.status!=='OK')return {ok:false,error:phoneResult.status_text||'SMS.ru не принял номер'};
-  return {ok:true,channel:'sms_ru'};
-}
-
-export async function deliverCabinetCode(phone,code){
-  const provider=process.env.CABINET_OTP_PROVIDER||'';
-  if(provider==='console'&&process.env.NODE_ENV!=='production'){
-    console.log(`RSService26 cabinet code for ${phone}: ${code}`);
-    return {ok:true,channel:'console'};
-  }
-  if(provider==='sms_ru')return deliverCabinetCodeViaSmsRu(phone,code);
-  return {ok:false,error:'Канал доставки кода не настроен'};
+export function verifyCabinetPassword(password,storedHash){
+  const [algorithm,salt,encoded]=String(storedHash||'').split('$');
+  if(algorithm!=='scrypt'||!salt||!encoded)return false;
+  try{
+    const expected=Buffer.from(encoded,'base64url');
+    const actual=crypto.scryptSync(String(password||''),salt,expected.length);
+    return expected.length===actual.length&&crypto.timingSafeEqual(expected,actual);
+  }catch(e){return false}
 }
 
 export function createCabinetSessionToken(customerId){

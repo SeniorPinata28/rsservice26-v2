@@ -15,8 +15,8 @@ supabase/   SQL-схемы и безопасные добавочные мигр
 - Публичные страницы сайта: главная, проверка запчасти, каталог, корзина-черновик, запись, контакты.
 - API заявок: `/api/leads` сохраняет обращения в Supabase и может отправлять уведомление в Telegram.
 - Админка: `/admin` и `/api/admin/*` защищены `ADMIN_BASIC_AUTH` или `ADMIN_SECRET`.
-- Кабинет клиента: серверные API, OTP-вход, HTTP-only cookie и middleware-защита уже реализованы; ссылка в меню включается флагом `NEXT_PUBLIC_CABINET_ENABLED=true`.
-- Supabase SQL: базовые таблицы клиентов, автомобилей, заявок, комментариев, истории обслуживания, OTP-кодов и rate limit.
+- Кабинет клиента: учётную запись создаёт менеджер, вход выполняется по телефону и паролю; HTTP-only cookie и middleware-защита уже реализованы. Ссылка в меню включается флагом `NEXT_PUBLIC_CABINET_ENABLED=true`.
+- Supabase SQL: базовые таблицы клиентов, автомобилей, заявок, комментариев, истории обслуживания, парольного доступа и rate limit.
 - Проверки: `npm run smoke` для статической проверки проекта и `npm run smoke:live` для проверки развернутого сайта.
 
 ## Локальный запуск сайта
@@ -53,7 +53,7 @@ TELEGRAM_CHAT_ID
 2. `supabase/customers_admin_fields.sql`
 3. `supabase/vehicles_admin_fields.sql`
 4. `supabase/p3_cabinet_schema.sql`
-5. `supabase/cabinet_login_codes.sql`
+5. `supabase/cabinet_password_access.sql`
 6. `supabase/rate_limits.sql`
 7. `supabase/normalize_customer_status.sql`
 

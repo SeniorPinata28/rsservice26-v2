@@ -1,6 +1,6 @@
 export const CABINET_SESSION_COOKIE='rs_cabinet_session';
 
-const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.CABINET_OTP_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
+const SESSION_SECRET=process.env.CABINET_SESSION_SECRET||process.env.SUPABASE_SERVICE_ROLE_KEY||'rsservice26-dev-session-secret';
 
 function base64urlBytes(buffer){
   const bytes=new Uint8Array(buffer);

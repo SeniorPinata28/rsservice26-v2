@@ -12,8 +12,8 @@ const required=[
   'app/api/admin/leads/[id]/vehicle/route.js',
   'app/api/admin/customers/[id]/vehicles/route.js',
   'app/api/admin/vehicles/[id]/service-history/route.js',
-  'app/api/cabinet/request-code/route.js',
   'app/api/cabinet/login/route.js',
+  'app/api/cabinet/change-password/route.js',
   'app/api/cabinet/me/route.js',
   'app/api/cabinet/logout/route.js',
   'app/api/cabinet/request/route.js',
@@ -30,6 +30,7 @@ const required=[
   'app/admin/customers/[id]/page.jsx',
   'app/admin/customers/[id]/CustomerVehicleForm.jsx',
   'app/admin/customers/[id]/CustomerEditForm.jsx',
+  'app/admin/customers/[id]/CustomerCabinetAccessForm.jsx',
   'app/admin/vehicles/[id]/page.jsx',
   'app/admin/vehicles/[id]/ServiceHistoryForm.jsx',
   'app/admin/vehicles/[id]/VehicleEditForm.jsx',
@@ -39,7 +40,7 @@ const required=[
   'lib/rate-limit.js',
   'lib/service-history.js',
   'scripts/live-smoke.mjs',
-  '../supabase/cabinet_login_codes.sql',
+  '../supabase/cabinet_password_access.sql',
   '../supabase/rsservice26_core_schema.sql',
   '../supabase/rate_limits.sql',
   '../supabase/normalize_customer_status.sql'
@@ -81,7 +82,6 @@ if(exists('middleware.js')){
   must(middleware,/\/cabinet\/:path\*/,'middleware must match /cabinet routes');
   must(middleware,/\/api\/cabinet\/:path\*/,'middleware must match /api/cabinet routes');
   must(middleware,/pathname==='\/cabinet\/login'/,'/cabinet/login must remain public');
-  must(middleware,/pathname\.startsWith\('\/api\/cabinet\/request-code'\)/,'cabinet request-code API must remain public');
   must(middleware,/pathname\.startsWith\('\/api\/cabinet\/login'\)/,'cabinet login API must remain public');
   must(middleware,/hasValidCabinetSession\(request\)|verifyCabinetSessionTokenEdge/,'middleware must verify cabinet session cookie');
   must(middleware,/status:401/,'private cabinet API should return 401 without session');
@@ -103,17 +103,15 @@ if(exists('lib/cabinet-auth.js')){
   must(auth,/verifyCabinetSessionToken/,'cabinet auth must verify signed session token');
   must(auth,/setCabinetSessionCookie/,'cabinet auth must set session cookie');
   must(auth,/clearCabinetSessionCookie/,'cabinet auth must clear session cookie');
-  must(auth,/CABINET_OTP_PROVIDER/,'cabinet delivery must be provider-gated');
-  must(auth,/provider==='console'/,'console OTP provider should exist only as explicit provider');
+  must(auth,/hashCabinetPassword/,'cabinet auth must hash passwords');
+  must(auth,/verifyCabinetPassword/,'cabinet auth must verify password hashes');
+  must(auth,/scryptSync/,'cabinet passwords must use scrypt');
+  must(auth,/timingSafeEqual/,'password verification must use timing-safe comparison');
 }
 
 if(exists('lib/db.js')){
   const db=read('lib/db.js');
   must(db,/findConfirmedCustomerByPhone/,'cabinet stage requires confirmed customer lookup by phone');
-  must(db,/createCabinetLoginCode/,'cabinet OTP requires createCabinetLoginCode helper');
-  must(db,/findActiveCabinetLoginCode/,'cabinet OTP requires active code lookup');
-  must(db,/markCabinetLoginCodeUsed/,'cabinet OTP must mark used_at');
-  must(db,/incrementCabinetLoginAttempts/,'cabinet OTP must increment attempts');
   must(db,/getCustomerLeads/,'cabinet requires customer leads helper');
   must(db,/getCustomerVehicles/,'cabinet requires customer vehicles helper');
   must(db,/getCustomerServiceHistory/,'cabinet requires customer service history helper');
@@ -122,32 +120,21 @@ if(exists('lib/db.js')){
   must(db,/confirmLeadAsCustomer/,'P2 requires confirmLeadAsCustomer helper');
 }
 
-if(exists('../supabase/cabinet_login_codes.sql')){
-  const otpSql=read('../supabase/cabinet_login_codes.sql');
-  for(const field of ['id','phone','code_hash','expires_at','used_at','attempts','created_at'])must(otpSql,new RegExp(field),`cabinet_login_codes SQL missing field: ${field}`);
+if(exists('../supabase/cabinet_password_access.sql')){
+  const passwordSql=read('../supabase/cabinet_password_access.sql');
+  for(const field of ['password_hash','cabinet_enabled','must_change_password','password_updated_at'])must(passwordSql,new RegExp(field),`cabinet password SQL missing field: ${field}`);
 }
 if(exists('../supabase/rate_limits.sql')){
   const rateSql=read('../supabase/rate_limits.sql');
   must(rateSql,/create table if not exists public\.rate_limits/,'rate_limits SQL must create rate limit table');
 }
 
-if(exists('app/api/cabinet/request-code/route.js')){
-  const requestCode=read('app/api/cabinet/request-code/route.js');
-  must(requestCode,/findConfirmedCustomerByPhone/,'cabinet code request must be limited to confirmed customers');
-  must(requestCode,/checkRateLimit/,'cabinet code request must apply rate limit');
-  must(requestCode,/createCabinetLoginCode/,'cabinet code request must persist OTP hash');
-  must(requestCode,/hashOtp/,'cabinet code request must store hash, not plain OTP');
-  must(requestCode,/deliverCabinetCode/,'cabinet code request must deliver through provider abstraction');
-  must(requestCode,/canExposeDevCode/,'dev OTP exposure must be gated');
-}
-
 if(exists('app/api/cabinet/login/route.js')){
   const login=read('app/api/cabinet/login/route.js');
   must(login,/findConfirmedCustomerByPhone/,'cabinet login must allow only confirmed customers');
-  must(login,/findActiveCabinetLoginCode/,'cabinet login must require active OTP');
-  must(login,/hashOtp/,'cabinet login must verify OTP hash');
-  must(login,/incrementCabinetLoginAttempts/,'cabinet login must increment attempts on bad code');
-  must(login,/markCabinetLoginCodeUsed/,'cabinet login must mark OTP used_at');
+  must(login,/verifyCabinetPassword/,'cabinet login must verify password hash');
+  must(login,/cabinet_enabled/,'cabinet login must require manager-enabled access');
+  must(login,/checkRateLimit/,'cabinet login must apply rate limit');
   must(login,/setCabinetSessionCookie/,'cabinet login must set HTTP-only session cookie');
   mustNot(login,/getCustomerLeads/,'cabinet login must not return customer data directly');
   mustNot(login,/leads\.map/,'cabinet login must not return leads directly');
@@ -184,8 +171,8 @@ if(exists('app/api/cabinet/request/route.js')){
 
 if(exists('app/cabinet/login/CabinetLoginClient.jsx')){
   const loginClient=read('app/cabinet/login/CabinetLoginClient.jsx');
-  must(loginClient,/\/api\/cabinet\/request-code/,'login client must request OTP');
-  must(loginClient,/\/api\/cabinet\/login/,'login client must verify OTP');
+  must(loginClient,/\/api\/cabinet\/login/,'login client must send phone and password');
+  must(loginClient,/password/,'login client must contain password field');
   must(loginClient,/router\.replace\('\/cabinet'\)/,'login client must redirect to cabinet after login');
   must(loginClient,/\+7 \(999\) 999-99-99/,'login client must show phone mask placeholder');
 }
@@ -202,7 +189,7 @@ if(exists('app/cabinet/CabinetClient.jsx')){
   must(cabinetClient,/Оставить новую заявку/,'protected cabinet must show new request form');
   must(cabinetClient,/Сообщить об ошибке/,'protected cabinet must allow data correction request');
   must(cabinetClient,/Добавить автомобиль через менеджера/,'protected cabinet must allow vehicle request through manager');
-  mustNot(cabinetClient,/\/api\/cabinet\/request-code/,'protected cabinet must not request OTP');
+  must(cabinetClient,/\/api\/cabinet\/change-password/,'protected cabinet must support password change');
   mustNot(cabinetClient,/\/api\/cabinet\/login/,'protected cabinet must not perform login');
   mustNot(cabinetClient,/setCustomer\(/,'protected cabinet must not keep login customer in client state');
   mustNot(cabinetClient,/setLeads\(/,'protected cabinet must not keep login leads in client state');

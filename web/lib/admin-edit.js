@@ -1,4 +1,5 @@
 import {db,getCustomer,getLead,getVehicle,normalizePhone,updateLead} from './db.js';
+import {hashCabinetPassword,validateCabinetPassword} from './cabinet-auth.js';
 
 function trimOrNull(value){const text=String(value||'').trim();return text||null}
 function numberOrNull(value){const n=Number(String(value||'').replace(',','.'));return Number.isFinite(n)&&String(value||'').trim()!==''?n:null}
@@ -66,6 +67,21 @@ export async function updateCustomerDetails(id,data={}){
     lastError=attempt.error;
   }
   throw new Error('Не удалось обновить клиента: '+JSON.stringify(lastError));
+}
+
+export async function updateCustomerCabinetAccess(id,data={}){
+  const customer=await getCustomer(id);
+  if(!customer)throw new Error('Клиент не найден');
+  if(!normalizePhone(customer.phone))throw new Error('Сначала укажите телефон клиента');
+  const enabled=Boolean(data.enabled);
+  const password=String(data.password||'');
+  if(enabled&&!customer.password_hash&&!password)throw new Error('Для первого включения задайте временный пароль');
+  if(password){const error=validateCabinetPassword(password);if(error)throw new Error(error)}
+  const patch={cabinet_enabled:enabled,must_change_password:password?data.must_change_password!==false:Boolean(customer.must_change_password),password_updated_at:password?new Date().toISOString():customer.password_updated_at||null};
+  if(password)patch.password_hash=hashCabinetPassword(password);
+  const r=await db('customers?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=representation'},body:patch});
+  if(!r.ok)throw new Error('Не удалось обновить доступ: '+JSON.stringify(r.error||r.data||r.status));
+  return Array.isArray(r.data)?r.data[0]:r.data;
 }
 
 export async function deleteCustomerAdmin(id){
