@@ -5,7 +5,7 @@ export default function Header(){
   return <header className="header">
     <nav className="nav">
       <Link className="brand" href="/">
-        <img src="/brand/rs-logo.webp" alt="RS Service 26"/>
+        <img src="/brand/rs-logo.png" alt="RS Service 26" width="952" height="386"/>
       </Link>
       <div className="links mainLinks">
         <Link href="/parts">Запчасти</Link>
