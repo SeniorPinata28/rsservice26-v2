@@ -1,5 +1,4 @@
 import './globals.css'
-import './ux.css'
 import './design-system.css'
 export const metadata={
   metadataBase:new URL('https://www.rsservice26.ru'),

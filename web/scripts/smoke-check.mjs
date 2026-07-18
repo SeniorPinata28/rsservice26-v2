@@ -91,7 +91,7 @@ if(exists('middleware.js')){
 if(exists('components/Header.jsx')){
   const header=read('components/Header.jsx');
   must(header,/cabinetEnabled=true/,'cabinet must be enabled for production launch');
-  must(header,/cabinetEnabled&&<Link[^>]*href="\/cabinet"[^>]*>.*?<\/Link>/,'cabinet link must be rendered');
+  must(header,/cabinetEnabled&&<Link[^>]*href="\/cabinet"[^>]*>[\s\S]*?<\/Link>/,'cabinet link must be rendered');
 }
 
 if(exists('lib/cabinet-auth.js')){
