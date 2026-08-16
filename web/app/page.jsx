@@ -12,14 +12,14 @@ export default function Home(){
       <div className="homeHeroOverlay">
         <div className="homeHeroText">
           <span className="eyebrow">Hyundai & Kia · Ставрополь</span>
-          <h1>Проверьте наличие<br/>запчастей <em>Hyundai</em> и <strong>Kia</strong><br/>за 15 секунд</h1>
-          <p>Оригинальные детали и проверенные аналоги<br/>с актуальными ценами и сроками поставки</p>
+          <h1>Проверьте наличие<br/>запчастей <em>Hyundai</em> и <strong>Kia</strong><br/>за несколько секунд</h1>
+          <p>Оригинальные детали и проверенные аналоги.<br/>Стоимость и срок поставки подтвердит менеджер.</p>
         </div>
         <div className="heroSpacer" aria-hidden="true"/>
         <form action="/availability" className="heroSearch">
           <div className="searchTabs"><span className="active">Артикул</span><span>VIN</span><span>Название детали</span></div>
-          <div className="heroSearchRow"><input className="input" name="q" required placeholder="Введите артикул или название детали"/><button className="btn primary">Проверить наличие</button></div>
-          <small>Примеры: 26300-35503, 28113-1R100, 97133-D1000</small>
+          <div className="heroSearchRow"><input className="input" name="q" required placeholder="Введите артикул или точное название"/><button className="btn primary">Проверить наличие</button></div>
+          <small>Если запрос общий, на следующем шаге можно уточнить автомобиль и нужную деталь.</small>
         </form>
       </div>
     </section>
@@ -30,7 +30,7 @@ export default function Home(){
 
     <div className="homeColumns pageShell">
       <div>
-        <section className="homeSection"><div className="sectionHead"><div><h2>Популярные запчасти</h2><p className="muted">Проверка цены и остатков в реальном времени</p></div><Link className="textLink" href="/parts">Весь каталог →</Link></div><div className="featuredParts">{topParts.map(p=><article className="darkProduct" key={p.sku}><span className="stockBadge">В наличии</span><div className="productVisual"><Image src={p.image} alt={p.name} width={320} height={220} sizes="(max-width: 640px) 80vw, 260px"/></div><h3>{p.name}</h3><small>{p.sku}</small><p>{p.compatibility}</p><div className="productBottom"><b>{p.price}</b><span>{p.stock} шт.</span></div><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Проверить</Link></article>)}</div></section>
+        <section className="homeSection"><div className="sectionHead"><div><h2>Популярные запчасти</h2><p className="muted">Цена и наличие подтверждаются перед заказом</p></div><Link className="textLink" href="/parts">Весь каталог →</Link></div><div className="featuredParts">{topParts.map(p=><article className="darkProduct" key={p.sku}><span className="stockBadge">В наличии</span><div className="productVisual"><Image src={p.image} alt={p.name} width={320} height={220} sizes="(max-width: 640px) 80vw, 260px"/></div><h3>{p.name}</h3><small>{p.sku}</small><p>{p.compatibility}</p><div className="productBottom"><b>{p.price}</b><span>{p.stock} шт.</span></div><Link className="btn primary" href={`/availability?q=${encodeURIComponent(p.sku)}`}>Уточнить наличие</Link></article>)}</div></section>
         <section className="bookingBanner"><div><h2>Запишитесь на сервис</h2><p>Выберите удобное время — менеджер подтвердит запись</p></div><Link className="btn primary" href="/booking">Записаться</Link></section>
       </div>
       <aside className="homeAside"><section className="darkPanel"><div className="sectionHead"><h2>Стандартные работы</h2><Link className="textLink" href="/services">Все услуги и цены</Link></div>{topServices.map(s=><div className="priceRow" key={s.name}><span>{s.name}</span><i/><b>{s.price}</b></div>)}<Link className="panelLink" href="/services">Показать все услуги</Link></section><section className="helpPanel"><div><b>Нужна помощь?</b><p>Менеджер подберёт запчасти и рассчитает стоимость работ</p></div><Link className="btn" href="/contact">Связаться</Link></section></aside>
