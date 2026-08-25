@@ -1,4 +1,4 @@
-import {getCabinetSessionFromRequest} from '../../../../lib/cabinet-auth.js';
+import {getCabinetSessionFromRequest,isCabinetSessionCurrent} from '../../../../lib/cabinet-auth.js';
 import {dbReady,getCustomer,getCustomerLeads,getCustomerServiceHistory,getCustomerVehicles,getPublicLeadComments} from '../../../../lib/db.js';
 import {publicError} from '../../../../lib/validation.js';
 
@@ -14,7 +14,7 @@ export async function GET(request){
     const session=getCabinetSessionFromRequest(request);
     if(!session?.customer_id)return Response.json({ok:false,error:'Требуется вход в кабинет'},{status:401});
     const customer=await getCustomer(session.customer_id);
-    if(!customer)return Response.json({ok:false,error:'Клиент не найден'},{status:404});
+    if(!isCabinetSessionCurrent(session,customer))return Response.json({ok:false,error:'Сессия недействительна. Выполните вход повторно.'},{status:401});
     const [vehicles,leads,history]=await Promise.all([getCustomerVehicles(customer.id),getCustomerLeads(customer.id),getCustomerServiceHistory(customer.id)]);
     const publicComments=await getPublicLeadComments(leads.map(lead=>lead.id));
     const commentsByLead=new Map();

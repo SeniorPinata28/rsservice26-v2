@@ -79,6 +79,8 @@ if(exists('middleware.js')){
   const middleware=read('middleware.js');
   must(middleware,/ADMIN_BASIC_AUTH/,'admin guard must support ADMIN_BASIC_AUTH');
   must(middleware,/ADMIN_SECRET/,'admin guard must support ADMIN_SECRET');
+  mustNot(middleware,/searchParams\.get\(['"]admin_secret/,'admin secret must never be accepted from URL query');
+  mustNot(middleware,/rs_admin_secret/,'admin secret must not be accepted from a browser cookie');
   must(middleware,/\/admin\/:path\*/,'middleware must match /admin routes');
   must(middleware,/\/api\/admin\/:path\*/,'middleware must match /api/admin routes');
   must(middleware,/\/cabinet\/:path\*/,'middleware must match /cabinet routes');
@@ -109,6 +111,8 @@ if(exists('lib/cabinet-auth.js')){
   must(auth,/verifyCabinetPassword/,'cabinet auth must verify password hashes');
   must(auth,/scryptSync/,'cabinet passwords must use scrypt');
   must(auth,/timingSafeEqual/,'password verification must use timing-safe comparison');
+  must(auth,/session_version/,'cabinet session must carry a revocation version');
+  must(auth,/isCabinetSessionCurrent/,'cabinet session must verify current customer access');
   mustNot(auth,/SUPABASE_SERVICE_ROLE_KEY\|\|'rsservice26-dev-session-secret'/,'cabinet session must use a dedicated production secret');
 }
 
@@ -154,6 +158,7 @@ if(exists('app/api/cabinet/login/route.js')){
   must(login,/NextResponse\.json/,'cabinet login must use NextResponse before setting cookies');
   mustNot(login,/const response=Response\.json/,'native Response cannot set Next.js cookies');
   must(login,/consume:false/,'successful cabinet login must not consume a failed-attempt quota');
+  must(login,/failClosed:true/,'cabinet login rate limit must fail closed');
   mustNot(login,/getCustomerLeads/,'cabinet login must not return customer data directly');
   mustNot(login,/leads\.map/,'cabinet login must not return leads directly');
 }
@@ -166,6 +171,7 @@ if(exists('app/api/cabinet/me/route.js')){
   must(me,/getCustomerLeads\(customer\.id\)/,'cabinet me must filter leads by session customer');
   must(me,/getCustomerServiceHistory\(customer\.id\)/,'cabinet me must filter service history by session customer');
   must(me,/status:401/,'cabinet me must return 401 without session');
+  must(me,/isCabinetSessionCurrent/,'cabinet me must reject revoked sessions');
   mustNot(me,/raw_payload/,'cabinet me must not expose raw_payload');
 }
 
@@ -185,7 +191,22 @@ if(exists('app/api/cabinet/request/route.js')){
   must(request,/createLead/,'cabinet request must create lead via helper');
   must(request,/source:'cabinet'/,'cabinet request must set source cabinet');
   must(request,/customerId:customer\.id/,'cabinet request must force customer_id from session');
+  must(request,/failClosed:true/,'cabinet request rate limit must fail closed');
   mustNot(request,/data\.customer_id/,'cabinet request must not trust customer_id from client');
+}
+
+if(exists('app/api/availability-search/route.js')){
+  const availability=read('app/api/availability-search/route.js');
+  must(availability,/readLimitedJson\(request,4096\)/,'Rossko search must enforce an actual body limit');
+  must(availability,/rossko_search/,'Rossko search must use a dedicated rate-limit scope');
+  must(availability,/failClosed:true/,'Rossko rate limit must fail closed');
+  must(availability,/Method not allowed/,'Rossko GET search must be disabled');
+}
+
+if(exists('lib/validation.js')){
+  const validation=read('lib/validation.js');
+  must(validation,/request\.body\.getReader\(\)/,'JSON size limit must inspect streamed body bytes');
+  must(validation,/REQUEST_TOO_LARGE/,'JSON size limit must return a specific oversized-body error');
 }
 
 if(exists('app/cabinet/login/CabinetLoginClient.jsx')){

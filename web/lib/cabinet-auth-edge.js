@@ -35,6 +35,6 @@ export async function verifyCabinetSessionTokenEdge(token){
     const payload=JSON.parse(fromBase64url(encoded));
     if(!payload?.customer_id)return null;
     if(Number(payload.exp||0)<Math.floor(Date.now()/1000))return null;
-    return {customer_id:String(payload.customer_id)};
+    return {customer_id:String(payload.customer_id),session_version:String(payload.session_version||'')};
   }catch(e){return null}
 }

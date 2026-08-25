@@ -1,6 +1,6 @@
 import {createLead,dbReady,normalizePhone} from '../../../lib/db.js';
 import {checkRateLimit,rateLimitResponse} from '../../../lib/rate-limit.js';
-import {cleanText,normalizeRussianPhone,publicError,requestTooLarge,validVin} from '../../../lib/validation.js';
+import {cleanText,normalizeRussianPhone,publicError,readLimitedJson,validVin} from '../../../lib/validation.js';
 
 export async function GET(){return Response.json({ok:false,error:'Method not allowed'},{status:405})}
 
@@ -10,8 +10,7 @@ function duplicateKey({phone,type,text,vin}){return [phone,type,vin||'',String(t
 
 export async function POST(request){
   try{
-    if(requestTooLarge(request))return Response.json({ok:false,error:'Слишком большой запрос'},{status:413});
-    const data=await request.json();
+    const data=await readLimitedJson(request,65536);
     const name=cleanText(value(data,'name','client_name'),100);
     const phone=normalizeRussianPhone(value(data,'phone','client_phone'));
     const car=cleanText(value(data,'car_text','car','vehicle'),250);
@@ -29,7 +28,8 @@ export async function POST(request){
       phone,
       customKey:duplicateKey({phone,type,text,vin}),
       windowSeconds:Number(process.env.LEAD_DUPLICATE_WINDOW_SECONDS||300),
-      limit:1
+      limit:1,
+      failClosed:true
     });
     if(!duplicateLimit.ok)return rateLimitResponse(duplicateLimit,'Такая заявка уже отправлена. Менеджер свяжется с вами. Повторно отправлять не нужно.');
 
@@ -38,7 +38,8 @@ export async function POST(request){
       scope:'leads',
       phone,
       windowSeconds:Number(process.env.LEADS_RATE_LIMIT_WINDOW_SECONDS||60),
-      limit:Number(process.env.LEADS_RATE_LIMIT_MAX||3)
+      limit:Number(process.env.LEADS_RATE_LIMIT_MAX||3),
+      failClosed:true
     });
     if(!limit.ok)return rateLimitResponse(limit,'Слишком много заявок. Попробуйте отправить повторно позже или позвоните менеджеру.');
 

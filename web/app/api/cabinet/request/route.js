@@ -1,7 +1,7 @@
-import {getCabinetSessionFromRequest} from '../../../../lib/cabinet-auth.js';
+import {getCabinetSessionFromRequest,isCabinetSessionCurrent} from '../../../../lib/cabinet-auth.js';
 import {createLead,dbReady,getCustomer,getCustomerVehicles,normalizePhone} from '../../../../lib/db.js';
 import {checkRateLimit,rateLimitResponse} from '../../../../lib/rate-limit.js';
-import {cleanText,publicError,requestTooLarge,validVin} from '../../../../lib/validation.js';
+import {cleanText,publicError,readLimitedJson,validVin} from '../../../../lib/validation.js';
 
 function value(data,...keys){for(const key of keys){const v=data?.[key];if(v!==undefined&&v!==null&&String(v).trim()!=='')return String(v).trim()}return ''}
 function typeValue(type){const allowed={parts_order:'parts_order',service_booking:'service_booking',general_callback:'general_callback',cabinet_data_correction:'cabinet_data_correction',cabinet_vehicle_request:'cabinet_vehicle_request',cabinet_request:'cabinet_request'};return allowed[type]||'cabinet_request'}
@@ -17,13 +17,12 @@ async function notifyTelegram(lead,type,name,phone,car,text,vin){
 
 export async function POST(request){
   try{
-    if(requestTooLarge(request))return Response.json({ok:false,error:'Слишком большой запрос'},{status:413});
     if(!dbReady())return Response.json({ok:false,error:'Supabase не настроен'},{status:500});
     const session=getCabinetSessionFromRequest(request);
     if(!session?.customer_id)return Response.json({ok:false,error:'Требуется вход в кабинет'},{status:401});
-    const data=await request.json().catch(()=>({}));
+    const data=await readLimitedJson(request,65536);
     const customer=await getCustomer(session.customer_id);
-    if(!customer)return Response.json({ok:false,error:'Клиент не найден'},{status:404});
+    if(!isCabinetSessionCurrent(session,customer))return Response.json({ok:false,error:'Сессия недействительна. Выполните вход повторно.'},{status:401});
     const phone=normalizePhone(customer.phone);
     if(!phone)return Response.json({ok:false,error:'У клиента не указан телефон'},{status:400});
 
@@ -33,7 +32,8 @@ export async function POST(request){
       phone,
       customKey:'customer:'+customer.id,
       windowSeconds:Number(process.env.CABINET_REQUEST_RATE_LIMIT_WINDOW_SECONDS||300),
-      limit:Number(process.env.CABINET_REQUEST_RATE_LIMIT_MAX||3)
+      limit:Number(process.env.CABINET_REQUEST_RATE_LIMIT_MAX||3),
+      failClosed:true
     });
     if(!limit.ok)return rateLimitResponse(limit,'Слишком много заявок из кабинета. Попробуйте позже или позвоните менеджеру.');
 

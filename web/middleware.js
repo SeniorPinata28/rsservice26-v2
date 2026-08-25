@@ -17,9 +17,7 @@ function isAllowedBySecret(request){
   const secret=process.env.ADMIN_SECRET;
   if(!secret)return false;
   const header=request.headers.get('x-admin-secret')||'';
-  const cookie=request.cookies.get('rs_admin_secret')?.value||'';
-  const query=request.nextUrl.searchParams.get('admin_secret')||'';
-  return header===secret||cookie===secret||query===secret;
+  return header===secret;
 }
 
 function hasAdminGuardConfigured(){return Boolean(process.env.ADMIN_BASIC_AUTH||process.env.ADMIN_SECRET)}

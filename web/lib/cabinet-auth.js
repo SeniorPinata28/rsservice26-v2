@@ -49,8 +49,9 @@ export function verifyCabinetPassword(password,storedHash){
 }
 
 export function createCabinetSessionToken(customerId){
-  const maxAge=ttlSeconds(process.env.CABINET_SESSION_TTL_SECONDS,60*60*24*14);
-  const payload={customer_id:String(customerId),exp:Math.floor(Date.now()/1000)+maxAge};
+  const customer=typeof customerId==='object'&&customerId?customerId:{id:customerId,password_updated_at:''};
+  const maxAge=ttlSeconds(process.env.CABINET_SESSION_TTL_SECONDS,60*60*24*3);
+  const payload={customer_id:String(customer.id),session_version:String(customer.password_updated_at||''),exp:Math.floor(Date.now()/1000)+maxAge};
   const encoded=base64url(JSON.stringify(payload));
   return `${encoded}.${sign(encoded)}`;
 }
@@ -64,13 +65,13 @@ export function verifyCabinetSessionToken(token){
     const payload=JSON.parse(fromBase64url(encoded));
     if(!payload?.customer_id)return null;
     if(Number(payload.exp||0)<Math.floor(Date.now()/1000))return null;
-    return {customer_id:String(payload.customer_id)};
+    return {customer_id:String(payload.customer_id),session_version:String(payload.session_version||'')};
   }catch(e){return null}
 }
 
-export function setCabinetSessionCookie(response,customerId){
-  const maxAge=ttlSeconds(process.env.CABINET_SESSION_TTL_SECONDS,60*60*24*14);
-  response.cookies.set(CABINET_SESSION_COOKIE,createCabinetSessionToken(customerId),{
+export function setCabinetSessionCookie(response,customer){
+  const maxAge=ttlSeconds(process.env.CABINET_SESSION_TTL_SECONDS,60*60*24*3);
+  response.cookies.set(CABINET_SESSION_COOKIE,createCabinetSessionToken(customer),{
     httpOnly:true,
     secure:process.env.NODE_ENV==='production',
     sameSite:'lax',
@@ -93,4 +94,9 @@ export function clearCabinetSessionCookie(response){
 
 export function getCabinetSessionFromRequest(request){
   return verifyCabinetSessionToken(request.cookies.get(CABINET_SESSION_COOKIE)?.value||'');
+}
+
+export function isCabinetSessionCurrent(session,customer){
+  if(!session?.customer_id||!customer||customer.cabinet_enabled!==true)return false;
+  return String(session.customer_id)===String(customer.id)&&String(session.session_version||'')===String(customer.password_updated_at||'');
 }

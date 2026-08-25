@@ -28,22 +28,25 @@ function memoryCheck(identifier,windowSeconds,limit,consume=true){
   return {ok:true,remaining:Math.max(0,limit-current.length),source:'memory'};
 }
 
-async function persistentCheck({scope,identifier,windowSeconds,limit,consume=true}){
-  if(!dbReady())return {ok:true,source:'none'};
+async function persistentCheck({scope,identifier,windowSeconds,limit,consume=true,failClosed=false}){
+  if(!dbReady())return failClosed?{ok:false,unavailable:true,retryAfter:30,source:'db_unavailable'}:{ok:true,source:'none'};
   const since=new Date(Date.now()-windowSeconds*1000).toISOString();
   const selectPath='rate_limits?scope=eq.'+encodeURIComponent(scope)+'&identifier=eq.'+encodeURIComponent(identifier)+'&created_at=gt.'+encodeURIComponent(since)+'&select=id,created_at&order=created_at.asc';
-  const existing=await db(selectPath);
-  if(!existing.ok||!Array.isArray(existing.data))return {ok:true,source:'db_unavailable'};
+  const existing=await db(selectPath).catch(()=>null);
+  if(!existing?.ok||!Array.isArray(existing.data))return failClosed?{ok:false,unavailable:true,retryAfter:30,source:'db_unavailable'}:{ok:true,source:'db_unavailable'};
   if(existing.data.length>=limit){
     const oldest=new Date(existing.data[0].created_at).getTime();
     const retryAfter=Math.max(1,Math.ceil((windowSeconds*1000-(Date.now()-oldest))/1000));
     return {ok:false,retryAfter,source:'db'};
   }
-  if(consume)await db('rate_limits',{method:'POST',body:[{scope,identifier}]}).catch(()=>null);
+  if(consume){
+    const inserted=await db('rate_limits',{method:'POST',body:[{scope,identifier}]}).catch(()=>null);
+    if(!inserted?.ok&&failClosed)return {ok:false,unavailable:true,retryAfter:30,source:'db_unavailable'};
+  }
   return {ok:true,remaining:Math.max(0,limit-existing.data.length-(consume?1:0)),source:'db'};
 }
 
-export async function checkRateLimit({request,scope,phone,windowSeconds,limit,customKey,consume=true}){
+export async function checkRateLimit({request,scope,phone,windowSeconds,limit,customKey,consume=true,failClosed=false}){
   const normalizedPhone=normalizePhone(phone);
   const ip=clientIp(request);
   const phoneKey=normalizedPhone?`phone:${normalizedPhone}`:'';
@@ -61,15 +64,16 @@ export async function checkRateLimit({request,scope,phone,windowSeconds,limit,cu
     if(!ipMemory.ok)return ipMemory;
   }
 
-  const primaryDb=await persistentCheck({scope,identifier,windowSeconds:win,limit:lim,consume});
+  const primaryDb=await persistentCheck({scope,identifier,windowSeconds:win,limit:lim,consume,failClosed});
   if(!primaryDb.ok)return primaryDb;
   if(phoneKey&&!customKey){
-    const ipDb=await persistentCheck({scope,identifier:ipIdentifier,windowSeconds:win,limit:Math.max(lim*2,4),consume});
+    const ipDb=await persistentCheck({scope,identifier:ipIdentifier,windowSeconds:win,limit:Math.max(lim*2,4),consume,failClosed});
     if(!ipDb.ok)return ipDb;
   }
   return {ok:true,remaining:primaryDb.remaining??primaryMemory.remaining??0,source:primaryDb.source||primaryMemory.source};
 }
 
 export function rateLimitResponse(result,message='Слишком много запросов. Попробуйте позже.'){
-  return Response.json({ok:false,error:message,retryAfter:result?.retryAfter||60},{status:429,headers:{'Retry-After':String(result?.retryAfter||60)}});
+  const unavailable=Boolean(result?.unavailable);
+  return Response.json({ok:false,error:unavailable?'Защита запросов временно недоступна. Попробуйте позже.':message,retryAfter:result?.retryAfter||60},{status:unavailable?503:429,headers:{'Retry-After':String(result?.retryAfter||60)}});
 }
