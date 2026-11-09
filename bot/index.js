@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import {Telegraf,Markup} from 'telegraf';
+import {registerManager} from './manager.js';
 
 const bot=new Telegraf(process.env.BOT_TOKEN);
 const managerChatId=process.env.MANAGER_CHAT_ID||process.env.TELEGRAM_CHAT_ID;
@@ -51,6 +52,8 @@ bot.on('text',async ctx=>{
   return ctx.reply('В каталоге не найдено. Запрос отправлен менеджеру для ручной проверки.',mainMenu());
  }
 });
+
+registerManager(bot);
 
 bot.launch().then(()=>console.log('RSService26 bot started'));
 process.once('SIGINT',()=>bot.stop('SIGINT'));
