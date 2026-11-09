@@ -6,7 +6,7 @@ const allowedStatuses = new Map([
   ['accept', ['accepted', 'Принята']],
   ['progress', ['in_progress', 'В работе']],
   ['done', ['completed', 'Выполнена']],
-  ['cancel', ['cancelled', 'Отменена']]
+  ['cancel', ['declined', 'Отменена']]
 ]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const csvIds = (value = '') => new Set(value.split(',').map(s => s.trim()).filter(s => /^\d+$/.test(s)));
