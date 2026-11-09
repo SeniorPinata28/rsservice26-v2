@@ -1,7 +1,6 @@
 // Deputy manager controls. Enabled only when IDs and server-side Supabase credentials are configured.
 import { Markup } from 'telegraf';
 
-const roles = new Map();
 const allowedStatuses = new Map([
   ['accept', ['accepted', 'Принята']],
   ['progress', ['in_progress', 'В работе']],
@@ -82,7 +81,6 @@ export function registerManager(bot) {
         body: JSON.stringify({ status, updated_at: new Date().toISOString(), ...(status === 'completed' || status === 'cancelled' ? { closed_at: new Date().toISOString() } : { closed_at: null }) })
       });
       if (!updated?.length) return ctx.reply('Заявка не найдена.');
-      roles.set(id, { telegram_id: ctx.from.id, action, at: new Date().toISOString() });
       await ctx.reply('Заявка ' + escapeText(updated[0].public_id || id) + ': ' + label);
     } catch { await ctx.reply('Статус не сохранён. Проверьте подключение и права.'); }
   });
