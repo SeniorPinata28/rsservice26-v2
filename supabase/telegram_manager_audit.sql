@@ -23,13 +23,13 @@ begin
   (p_action='accept' and p_new_status='accepted') or
   (p_action='progress' and p_new_status='in_progress') or
   (p_action='done' and p_new_status='completed') or
-  (p_action='cancel' and p_new_status='cancelled')
+  (p_action='cancel' and p_new_status='declined')
  ) then raise exception 'Invalid status transition'; end if;
  select status into actual_status from public.leads where id=p_lead_id for update;
  if not found then raise exception 'Lead not found'; end if;
  if actual_status is distinct from p_expected_status then raise exception 'Lead changed concurrently'; end if;
  update public.leads set status=p_new_status, updated_at=now(),
-  closed_at=case when p_new_status in ('completed','cancelled') then now() else null end
+  closed_at=case when p_new_status in ('completed','declined') then now() else null end
  where id=p_lead_id;
  insert into public.telegram_manager_audit(lead_id,telegram_id,action,previous_status,new_status)
  values (p_lead_id,p_telegram_id,p_action,actual_status,p_new_status);
