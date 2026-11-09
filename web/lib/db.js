@@ -1,7 +1,7 @@
 const DB_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const DB_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const LEAD_STATUSES=['new_contact','in_progress','waiting_client','completed','declined'];
+export const LEAD_STATUSES=['new_contact','accepted','in_progress','waiting_client','completed','declined'];
 export const CONTACT_STATUSES=['unverified','verified','confirmed_client','duplicate','spam'];
 
 export function dbReady(){return Boolean(DB_URL&&DB_KEY)}
