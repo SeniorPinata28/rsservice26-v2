@@ -28,3 +28,16 @@ No Telegram ID has been configured in this branch. Without explicit IDs, no mana
 - Live bot identity, runtime and end-to-end tests are **not verified**.
 
 Do not merge this branch into production before the checks above.
+
+## Audit findings (2026-11-09)
+- The website posts Telegram notifications directly in `web/app/api/leads/route.js` using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. This does **not** establish that the separate `bot/index.js` long-polling process is deployed anywhere.
+- Vercel project `rsservice26-v2` contains the website's Telegram environment variables but no `BOT_TOKEN`, `OWNER_TELEGRAM_IDS` or `DEPUTY_TELEGRAM_IDS` for the separate bot process.
+- Supabase has `leads`, `customers`, `vehicles`, `parts_requests`; `telegram_manager_audit` is absent in production. SQL migration is staged in `supabase/telegram_manager_audit.sql` but NOT applied.
+- Existing website statuses: `new_contact`, `in_progress`, `waiting_client`, `completed`, `declined`. The branch adds `accepted` to the website's normalization list; bot maps cancel to `declined`.
+- Bot now provides filtered real/test leads, client lead history, linked vehicles, and linked part request read-only details. **Part-order confirmation is not implemented.**
+- Test-lead detection is heuristic by `source`, `type`, and `raw_payload.test`. It is not a fully reliable production/test isolation mechanism.
+- Status updates use an atomic audited SQL RPC and intentionally fail without the migration.
+- Numeric IDs of owner and deputy remain unconfigured. The username `@SGalstyan720` is not a numeric Telegram ID.
+
+## Deployment gate
+Do not merge or deploy until the runtime and bot token identity are confirmed, owner/deputy numeric IDs verified, staging tests run, and SQL migration reviewed. No live user data should be changed during testing.
