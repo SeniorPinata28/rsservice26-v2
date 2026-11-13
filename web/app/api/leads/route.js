@@ -1,4 +1,5 @@
 import {createLead,dbReady,normalizePhone} from '../../../lib/db.js';
+import {leadActions} from '../../../lib/telegram-transport.js';
 import {checkRateLimit,rateLimitResponse} from '../../../lib/rate-limit.js';
 import {cleanText,normalizeRussianPhone,publicError,readLimitedJson,validVin} from '../../../lib/validation.js';
 
@@ -82,7 +83,7 @@ export async function POST(request){
         delivery?`Срок доставки: ${delivery}`:null
       ].filter(Boolean).join('\n');
       try{
-        const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message})});
+        const tg=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:message,reply_markup:leadActions(savedLead.id)})});
         telegram=tg.ok;
         if(!tg.ok)console.error('Telegram notification failed',tg.status);
       }catch(e){console.error('Telegram notification failed')}

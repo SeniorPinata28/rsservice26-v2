@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {handleTelegramUpdate} from '../../../../lib/telegram-bot.js';
 import {publicError,readLimitedJson} from '../../../../lib/validation.js';
 export const runtime='nodejs';
-export const maxDuration=30;
+export const maxDuration=60;
 export async function GET(){return Response.json({ok:false,error:'Method not allowed'},{status:405,headers:{Allow:'POST'}})}
 export async function POST(request){
  const expected=process.env.TELEGRAM_WEBHOOK_SECRET||'';
