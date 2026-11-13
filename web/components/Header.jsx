@@ -19,9 +19,9 @@ export default function Header(){
         <Link href="/contact" onClick={closeMenu}>Контакты</Link>
       </div>
       <div className="headerActions">
-        <a className="phoneLink" href="tel:+79679677042" aria-label="Позвонить в RS Service 26">
+        <a className="phoneLink" href="tel:+79624537297" aria-label="Позвонить в RS Service 26">
           <svg className="phoneIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.1 3.5 9.5 8 7.8 9.7c1.2 2.5 3.1 4.4 5.6 5.6l1.7-1.7 4.5 2.4v2.7c0 1-0.8 1.8-1.8 1.8C9.9 20.5 3.5 14.1 3.5 6.2c0-1 .8-1.8 1.8-1.8h1.8Z"/></svg>
-          <span className="phoneNumber">+7 (967) 967-70-42</span><span className="phoneHours">ежедневно 9:00–20:00</span>
+          <span className="phoneNumber">+7 (962) 453-72-97</span><span className="phoneHours">ежедневно 9:00–20:00</span>
         </a>
         {cabinetEnabled&&<Link className="cabinetLink" href="/cabinet" onClick={closeMenu} aria-label="Личный кабинет">
           <svg className="cabinetIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.7-4.1 3.1-6.2 7.5-6.2s6.8 2.1 7.5 6.2"/></svg><span className="cabinetText">Личный кабинет</span>
