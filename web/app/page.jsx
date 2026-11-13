@@ -36,7 +36,6 @@ export default function Home(){
       <aside className="homeAside"><section className="darkPanel"><div className="sectionHead"><h2>Стандартные работы</h2><Link className="textLink" href="/services">Все услуги и цены</Link></div>{topServices.map(s=><div className="priceRow" key={s.name}><span>{s.name}</span><i/><b>{s.price}</b></div>)}<Link className="panelLink" href="/services">Показать все услуги</Link></section><section className="helpPanel"><div><b>Нужна помощь?</b><p>Менеджер подберёт запчасти и рассчитает стоимость работ</p></div><Link className="btn" href="/contact">Связаться</Link></section></aside>
     </div>
 
-    <section className="statsBar pageShell" id="stats">{[['8+','лет на рынке'],['5000+','довольных клиентов'],['20+','специалистов в команде'],['100%','гарантия на работы']].map(([n,t])=><div key={n}><b>{n}</b><span>{t}</span></div>)}</section>
     <section className="bottomCta"><div><b>Нужна запчасть или ремонт?</b><span>Оставьте заявку — менеджер ответит и подтвердит детали.</span></div><div><Link className="btn primary" href="/availability">Проверить запчасть</Link><Link className="btn glass" href="/booking">Записаться</Link></div></section>
   </main><Footer/></>
 }
