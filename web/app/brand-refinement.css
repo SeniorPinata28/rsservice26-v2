@@ -1,0 +1,69 @@
+/* RS Service 26: red and blue light, graphite surfaces, generous typography. */
+.header{border-bottom-color:rgba(93,132,170,.22)}
+.homeHero{min-height:650px;background-position:center 50%;position:relative}
+.homeHero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,8,15,.85),rgba(3,8,15,.42) 40%,transparent 70%)}
+.homeHeroOverlay{max-width:1280px;min-height:650px;padding:64px 24px 0;grid-template-columns:1fr 1fr;gap:24px}
+.homeHeroText{max-width:540px}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:2px;color:#a0b6cc}
+.homeHero .eyebrow{display:flex;align-items:center;gap:10px}
+.homeHero .eyebrow i{height:6px;width:6px;border-radius:50%;background:#f42a41;box-shadow:0 0 16px #f42a41}
+.homeHero h1{font-size:clamp(48px,5.7vw,78px);font-weight:800;line-height:1.02;letter-spacing:-.06em;margin:16px 0 18px}
+.homeHero h1 em{color:#fff;background:linear-gradient(120deg,#fff 15%,#83b6f7 90%);background-clip:text;-webkit-text-fill-color:transparent}
+.heroSpecialty{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:16px}
+.homeHero p{font-size:15px;line-height:1.7;color:#bdc8d4}
+.heroActions{margin:25px 0 36px;gap:24px;align-items:center}
+.heroActions .btn{font-size:13px;padding:15px 20px;gap:22px;min-height:50px;border-radius:8px}
+.heroSecondary{display:inline-flex;gap:20px;align-items:center;font-size:12px;font-weight:700;color:#d8e0e9;min-height:44px}
+.heroSecondary:hover{color:#ff4256}
+.heroSearch{border-top:2px solid #e7283e;border-radius:12px 12px 0 0;padding:0 22px 18px;box-shadow:0 -10px 50px #0005}
+.heroSearchRow .btn{min-height:50px;font-size:13px}
+.heroSearch>small{font-size:10px;line-height:1.5;color:#92a1af}
+.pageShell{max-width:1280px}
+.cityStrip{display:grid;grid-template-columns:1fr 1fr;border:1px solid #24313f;border-top:0;background:linear-gradient(110deg,#101925,#070d15);border-radius:0 0 12px 12px}
+.cityItem{display:flex;align-items:center;gap:14px;padding:23px 24px}
+.cityItem:first-child{border-right:1px solid #25303d}
+.locationIcon{display:grid;place-items:center;width:36px;height:36px;border:1px solid #354355;border-radius:50%;color:#7fb5ff;font-size:21px;flex-shrink:0}
+.cityItem>a:not(.cityPhone){display:grid;gap:6px}
+.cityItem b{font-size:14px}.cityItem span:not(.locationIcon){font-size:11px;color:#9eacba}
+.cityPhone{margin-left:auto;font-size:13px;font-weight:700;white-space:nowrap}
+.cityPhone:hover{color:#ff4a60}
+.signatureServices{padding:68px 0 12px}
+.signatureHeading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:30px}
+.signatureHeading .eyebrow{color:#7f94aa;margin-bottom:12px}
+.signatureHeading h2{font-size:clamp(27px,3vw,42px);font-weight:750;line-height:1.12;letter-spacing:-.045em;margin:0}
+.signatureHeading h2>span{color:#f12b43}
+.signatureGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.signatureCard{position:relative;overflow:hidden;border:1px solid #273341;border-radius:12px;padding:25px;background:linear-gradient(140deg,#121c28,#070c13);transition:border-color .2s,transform .2s}
+.signatureCard:before{position:absolute;content:"";width:130px;height:2px;top:0;left:25px;background:linear-gradient(90deg,#ff2944,transparent);box-shadow:0 0 22px #ff163b66}
+.signatureCard:nth-child(even):before{background:linear-gradient(90deg,#378fff,transparent);box-shadow:0 0 22px #2687ff66}
+.signatureCard:hover{border-color:#738aa4;transform:translateY(-3px)}
+.serviceArt{height:95px;display:flex;align-items:flex-start;justify-content:space-between}
+.serviceArt svg{width:65px;height:65px;color:#f35b6c;filter:drop-shadow(0 0 16px #f0254238)}
+.signatureCard:nth-child(even) svg{color:#74b1ff;filter:drop-shadow(0 0 16px #267dff38)}
+.serviceNumber{font-size:11px;letter-spacing:2px;color:#607387}
+.signatureCard h3{font-size:20px;line-height:1.2;letter-spacing:-.03em;margin:4px 0 12px}
+.signatureCard p{font-size:13px;line-height:1.65;color:#9fadb9;margin:0 0 24px;min-height:63px}
+.serviceCardBottom{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #26313e;padding-top:16px}
+.serviceCardBottom b{font-size:14px;font-weight:650}.serviceCardBottom>span{font-size:20px;color:#9bacbf}
+.homeColumns{margin-top:50px;gap:24px;grid-template-columns:minmax(0,1fr) 310px}
+.homeSection .sectionHead h2{font-size:26px}.sectionHead .muted{font-size:12px;margin-top:8px}.textLink{font-size:12px}
+.darkProduct{padding:18px}.productVisual{height:150px;background:#0c131c}.productVisual img{object-fit:contain}
+.darkProduct h3{font-size:15px;min-height:40px;margin-top:12px}.darkProduct>small,.darkProduct>p{font-size:11px;line-height:1.5}
+.stockBadge{font-size:9px}.productBottom{margin:18px 0}.darkProduct .btn{font-size:12px}
+.partsHelp{height:100%;padding:28px;border:1px solid #293b55;border-radius:14px;background:radial-gradient(ellipse at top right,#16335a66,transparent 65%),#0b121c;display:flex;flex-direction:column}
+.partsHelp .eyebrow{font-size:9px;color:#7fabe6}.partsHelp h2{font-size:29px;line-height:1.15;letter-spacing:-.04em;margin:8px 0 18px}
+.partsHelp p{font-size:13px;line-height:1.8;color:#9faebd;margin:0 0 24px}.partsHelp .btn{font-size:12px}.partsHelpNote{margin-top:auto;padding-top:32px;font-size:11px;line-height:1.8;color:#72879e}
+.bookingBanner{padding:24px}.bookingBanner h2{font-size:19px}.bookingBanner p{font-size:12px;line-height:1.5}
+.bottomCta{max-width:1280px;width:calc(100% - 64px);margin-top:36px;padding:32px;border:1px solid #3c3143;background:linear-gradient(110deg,#111e32,#11111a 65%,#30101a);position:relative}
+.bottomCta b{font-size:23px;letter-spacing:-.03em}.bottomCta span{font-size:13px;line-height:1.65;margin-top:8px}.bottomCta>div:last-child{display:flex;gap:10px}.bottomCta .btn{font-size:12px;min-height:48px}
+.footer{padding:32px;margin-top:50px}.footerInner{max-width:1280px;grid-template-columns:160px 1fr auto}.footerInner p{font-size:12px;line-height:1.8;max-width:320px}.footerInner nav{display:none}
+.footerPhones{display:flex;gap:28px}.footerPhones a{font-size:13px;font-weight:700;line-height:1.7;white-space:nowrap}.footerPhones small{display:block;font-size:10px;font-weight:500;color:#8c9aab}
+@media(max-width:1100px){.cityItem{flex-wrap:wrap;gap:12px}.cityPhone{margin-left:50px;width:100%}.homeColumns{grid-template-columns:minmax(0,1fr) 270px}.footerPhones{flex-direction:column;gap:12px}}
+@media(max-width:900px){.homeHeroOverlay{grid-template-rows:auto 170px auto;gap:0}.homeHero{background-position:center 165px;background-size:auto 650px}.heroSpacer{min-height:170px}.homeHeroText{max-width:550px}.homeHeroOverlay{padding-top:36px}.homeHero h1{font-size:58px}.homeColumns{grid-template-columns:1fr}.homeAside{display:block}.partsHelp{display:block}.partsHelp h2 br{display:none}.partsHelpNote{padding-top:18px}.signatureGrid{grid-template-columns:repeat(2,1fr)}.footerInner{grid-template-columns:130px 1fr}.footerPhones{grid-column:1/3;flex-direction:row;justify-content:space-between;border-top:1px solid #27313e;padding-top:20px}.homeHeroOverlay .heroActions{flex-wrap:wrap}}
+@media(max-width:640px){.homeHero{min-height:0;background-position:center 135px;background-size:auto 580px}.homeHero:before{background:linear-gradient(180deg,#030911 0%,#030911d9 24%,transparent 68%)}.homeHeroOverlay{min-height:0;grid-template-rows:auto 170px auto;width:calc(100% - 32px);padding:32px 0 0}.homeHero h1{font-size:49px;line-height:1.02;margin-top:16px}.homeHero .eyebrow{font-size:9px;letter-spacing:1.5px}.heroSpecialty{font-size:15px}.homeHero p{font-size:13px}.heroActions{gap:15px;margin-top:20px;margin-bottom:0}.heroActions .btn{padding:12px 15px;font-size:12px;gap:14px;min-height:46px}.heroSecondary{font-size:11px;gap:12px}.heroSpacer{min-height:170px}.heroSearch{padding:0 14px 16px}.heroSearchRow{grid-template-columns:1fr;gap:10px}.heroSearchRow .btn{min-height:46px}.heroSearch>small{font-size:9px}.searchTabs{gap:18px}.searchTabs span{font-size:11px}.pageShell{width:calc(100% - 32px)}.cityStrip{grid-template-columns:1fr}.cityItem{padding:18px;flex-wrap:nowrap;gap:12px}.cityItem:first-child{border-right:0;border-bottom:1px solid #26313e}.cityItem b{font-size:13px}.cityItem span:not(.locationIcon){font-size:10px}.locationIcon{display:none}.cityPhone{width:auto;margin-left:auto;font-size:11px}.signatureServices{padding-top:42px}.signatureHeading{align-items:flex-start;gap:12px;flex-direction:column;margin-bottom:22px}.signatureHeading h2{font-size:32px}.signatureHeading .eyebrow{font-size:9px}.signatureGrid{gap:10px}.signatureCard{padding:17px 14px}.serviceArt{height:70px}.serviceArt svg{width:46px;height:46px}.serviceNumber{font-size:9px}.signatureCard h3{font-size:16px;min-height:38px;line-height:1.2}.signatureCard p{font-size:11px;line-height:1.65;min-height:90px;margin-bottom:15px}.serviceCardBottom{padding-top:12px}.serviceCardBottom b{font-size:11px}.homeColumns{margin-top:32px}.homeSection .sectionHead{flex-direction:row;align-items:flex-start;gap:12px}.homeSection .sectionHead h2{font-size:23px;margin:0}.sectionHead .muted{font-size:11px;max-width:200px}.textLink{font-size:10px;white-space:nowrap;padding-top:5px}.darkProduct{padding:15px}.darkProduct h3{font-size:15px;min-height:0}.featuredParts{grid-template-columns:1fr}.productVisual{height:180px}.productVisual img{object-fit:contain}.bookingBanner{padding:20px;flex-direction:column;align-items:flex-start}.bookingBanner .btn{width:100%;margin-top:5px}.bookingBanner h2{font-size:20px}.partsHelp{padding:24px}.partsHelp h2{font-size:26px}.partsHelp .btn{width:100%}.bottomCta{width:calc(100% - 32px);padding:24px;margin-top:28px;border-radius:14px}.bottomCta b{font-size:23px}.bottomCta>div:last-child{width:100%;display:grid;grid-template-columns:1fr 1fr;margin-top:10px;gap:8px}.bottomCta .btn{font-size:11px;padding:10px}.footer{padding:24px 16px;margin-top:32px}.footerInner{grid-template-columns:90px 1fr;gap:20px}.footerInner img{width:90px}.footerInner p{font-size:10px}.footerPhones a{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.signatureCard,.btn{transition:none!important;transform:none!important}}
+.homeHeroOverlay{grid-template-columns:1.1fr 1fr}
+.homeHeroText{max-width:640px}.homeHero h1{font-size:clamp(48px,4.5vw,65px)}
+.homeColumns>div{min-width:0}
+@media(max-width:900px){.homeHeroOverlay{grid-template-columns:minmax(0,1fr)}.heroSearch{grid-column:1;min-width:0}}
+@media(max-width:640px){.homeHero h1{font-size:49px}.heroActions{flex-wrap:nowrap!important;gap:14px}.heroActions .btn{padding-inline:12px;gap:10px}.heroActions .heroSecondary{gap:8px;white-space:nowrap}.featuredParts{display:grid;grid-template-columns:1fr;overflow:visible}.darkProduct{min-width:0;width:100%}.homeSection .sectionHead>div{min-width:0}.homeSection .sectionHead h2{font-size:22px}.homeSection .textLink{flex-shrink:0}}

@@ -1,5 +1,6 @@
 import './globals.css'
 import './design-system.css'
+import './brand-refinement.css'
 export const metadata={
   metadataBase:new URL('https://www.rsservice26.ru'),
   title:{default:'RSService26 — сервис Hyundai и Kia в Ставрополе и Пятигорске',template:'%s | RSService26'},
