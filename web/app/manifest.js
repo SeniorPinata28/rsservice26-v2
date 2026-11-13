@@ -1,1 +1,1 @@
-export default function manifest(){return {name:'RSService26',short_name:'RSService26',description:'Сервис и запчасти Hyundai и Kia в Ставрополе и Пятигорске',start_url:'/',display:'standalone',background_color:'#04080d',theme_color:'#04080d',lang:'ru'} }
+export default function manifest(){return {name:'RSService26',short_name:'RSService26',description:'Автосервис и запчасти для автомобилей разных марок в Ставрополе и Пятигорске',start_url:'/',display:'standalone',background_color:'#04080d',theme_color:'#04080d',lang:'ru'} }

@@ -10,7 +10,7 @@ export default function Header(){
   return <header className="header">
     <nav className="nav">
       <Link className="brand" href="/" onClick={closeMenu}>
-        <img src="/brand/rs-logo.png" alt="RS Service 26" width="952" height="386"/>
+        <img src="/brand/rs-chrome-logo.webp" alt="RS Service 26" width="1100" height="260"/>
       </Link>
       <div id="main-menu" className={`links mainLinks${menuOpen?' isOpen':''}`}>
         <Link href="/availability" onClick={closeMenu}>Запчасти</Link>

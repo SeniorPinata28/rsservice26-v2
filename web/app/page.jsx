@@ -6,14 +6,14 @@ import {services,parts} from '../data';
 
 export default function Home(){
   const featuredServices=[services[0],services[3],services[6],services[10],services[12],services[13]];
-  const icons=['M3 4h18v12H3z M8 20h8 M12 16v4 M6 11h3l2-4 3 7 2-3h2','M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11Z M9 15a3 3 0 0 0 3 3','M3 9h3l3-4h8v4h4v10H5v-4H3z M10 5V2 M7 2h6 M12 10l-2 4h4l-2 4','M8 3h8 M8 21h8 M12 3v3 M12 18v3 M8 6l8 3-8 3 8 3-8 3','M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 3v2 M3 12h2 M19 12h2 M12 19v2','M13 2 5 14h6l-1 8 9-13h-7z'];
+  const serviceImages=['diagnostics','maintenance','engine','suspension','brakes','electrics'];
   const topParts=parts.slice(0,3);
   return <><Header/><main className="homePage">
     <section className="homeHero">
       <div className="homeHeroOverlay">
         <div className="homeHeroText">
           <span className="eyebrow"><i/> СТАВРОПОЛЬ · ПЯТИГОРСК</span>
-          <h1>Ваш автомобиль.<br/>Наше <em>дело.</em></h1><div className="heroSpecialty">Сервис и запчасти Hyundai & Kia</div>
+          <h1>Ваш автомобиль.<br/>Наше <em>дело.</em></h1><div className="heroSpecialty">Мультибрендовый автосервис и запчасти</div>
           <p>Диагностика, обслуживание и ремонт.<br/>От подбора детали до готового автомобиля.</p><div className="heroActions"><Link className="btn primary" href="/booking">Записаться на сервис <span>→</span></Link><Link className="heroSecondary" href="/services">Услуги и цены <span>→</span></Link></div>
         </div>
         <div className="heroSpacer" aria-hidden="true"/>
@@ -28,7 +28,7 @@ export default function Home(){
     <section className="cityStrip pageShell" aria-label="Адреса автосервисов">
       {[['Ставрополь','просп. Кулакова, 18Д','+7 (962) 453-72-97','+79624537297'],['Пятигорск','ул. Фабричная, 32','+7 (934) 041-60-60','+79340416060']].map(([city,address,phone,tel])=><div className="cityItem" key={city}><span className="locationIcon">→</span><Link href="/contact"><b>{city}</b><span>{address}</span></Link><a className="cityPhone" href={`tel:${tel}`}>{phone}</a></div>)}
     </section>
-    <section className="signatureServices pageShell"><div className="signatureHeading"><div><span className="eyebrow">ТОЧНОСТЬ В КАЖДОЙ ДЕТАЛИ</span><h2>Сервис, которому<br/>доверяют автомобиль<span>.</span></h2></div><Link className="heroSecondary" href="/services">Все услуги и цены <span>→</span></Link></div><div className="signatureGrid">{featuredServices.map((service,i)=><Link href="/services" className="signatureCard" key={service.name}><div className="serviceArt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icons[i]}/></svg><span className="serviceNumber">0{i+1}</span></div><h3>{service.name}</h3><p>{service.description}</p><div className="serviceCardBottom"><b>{service.price}</b><span aria-hidden="true">→</span></div></Link>)}</div></section>
+    <section className="signatureServices pageShell"><div className="signatureHeading"><div><span className="eyebrow">ТОЧНОСТЬ В КАЖДОЙ ДЕТАЛИ</span><h2>Сервис, которому<br/>доверяют автомобиль<span>.</span></h2></div><Link className="heroSecondary" href="/services">Все услуги и цены <span>→</span></Link></div><div className="signatureGrid">{featuredServices.map((service,i)=><Link href="/services" className="signatureCard" key={service.name}><div className="serviceArt"><Image src={`/brand/service-${serviceImages[i]}.webp`} alt={service.name} width={512} height={512} sizes="(max-width: 640px) 45vw, (max-width: 900px) 45vw, 400px"/><span className="serviceNumber">0{i+1}</span></div><h3>{service.name}</h3><p>{service.description}</p><div className="serviceCardBottom"><b>{service.price}</b><span aria-hidden="true">→</span></div></Link>)}</div></section>
 
     <div className="homeColumns pageShell">
       <div>
